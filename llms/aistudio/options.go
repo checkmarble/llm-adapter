@@ -1,3 +1,3 @@
 package aistudio
 
-type llmOption func(*AiStudio)
+type option func(*AiStudio)

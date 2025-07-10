@@ -6,5 +6,6 @@ type Response struct {
 }
 
 type ResponseCandidate struct {
-	Text []string
+	Text            []string
+	SelectCandidate func()
 }

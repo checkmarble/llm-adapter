@@ -14,7 +14,7 @@ type AiStudio struct {
 	history llmadapter.History[*genai.Content]
 }
 
-func New(opts ...llmOption) (*AiStudio, error) {
+func New(opts ...option) (*AiStudio, error) {
 	llm := AiStudio{}
 
 	for _, opt := range opts {
@@ -113,14 +113,15 @@ Messages:
 	}
 
 	for idx, candidate := range response.Candidates {
-		if llm.SaveContext {
-			p.history.Save(candidate.Content)
-		}
-
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
 			Text: lo.Map(candidate.Content.Parts, func(part *genai.Part, index int) string {
 				return part.Text
 			}),
+			SelectCandidate: func() {
+				if llm.SaveContext {
+					p.history.Save(candidate.Content)
+				}
+			},
 		}
 	}
 
