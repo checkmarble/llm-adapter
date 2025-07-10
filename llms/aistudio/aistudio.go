@@ -12,9 +12,12 @@ import (
 type AiStudio struct {
 	client  *genai.Client
 	history llmadapter.History[*genai.Content]
+
+	project  string
+	location string
 }
 
-func New(opts ...option) (*AiStudio, error) {
+func New(opts ...opt) (*AiStudio, error) {
 	llm := AiStudio{}
 
 	for _, opt := range opts {
@@ -24,17 +27,20 @@ func New(opts ...option) (*AiStudio, error) {
 	return &llm, nil
 }
 
-func (llm *AiStudio) Init(adapter llmadapter.LlmAdapter) error {
-	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{
-		APIKey:  adapter.ApiKey,
-		Backend: genai.BackendGeminiAPI,
-	})
+func (p *AiStudio) Init(adapter llmadapter.LlmAdapter) error {
+	cfg := genai.ClientConfig{
+		APIKey:   adapter.ApiKey,
+		Backend:  genai.BackendGeminiAPI,
+		Project:  p.project,
+		Location: p.location,
+	}
 
+	client, err := genai.NewClient(context.Background(), &cfg)
 	if err != nil {
 		return err
 	}
 
-	llm.client = client
+	p.client = client
 
 	return nil
 }
@@ -43,7 +49,7 @@ func (p *AiStudio) ResetContext() {
 	p.history.Clear()
 }
 
-func (p *AiStudio) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter, r llmadapter.Request) (*llmadapter.Response, error) {
+func (p *AiStudio) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter, r llmadapter.InnerRequest) (*llmadapter.Response, error) {
 	contents := make([]*genai.Content, 0, len(r.Messages))
 
 	if llm.SaveContext {
@@ -56,6 +62,11 @@ func (p *AiStudio) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapt
 	}
 
 	cfg := genai.GenerateContentConfig{}
+
+	if r.ResponseSchema != nil {
+		cfg.ResponseMIMEType = "application/json"
+		cfg.ResponseJsonSchema = r.ResponseSchema.Schema
+	}
 
 Messages:
 	for _, msg := range r.Messages {
@@ -117,7 +128,7 @@ Messages:
 			Text: lo.Map(candidate.Content.Parts, func(part *genai.Part, index int) string {
 				return part.Text
 			}),
-			SelectCandidate: func() {
+			SelectCandidateFunc: func() {
 				if llm.SaveContext {
 					p.history.Save(candidate.Content)
 				}

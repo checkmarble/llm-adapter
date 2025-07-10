@@ -45,7 +45,7 @@ func (p *OpenAi) ResetContext() {
 	p.history.Clear()
 }
 
-func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter, r llmadapter.Request) (*llmadapter.Response, error) {
+func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter, r llmadapter.InnerRequest) (*llmadapter.Response, error) {
 	contents := make([]openai.ChatCompletionMessageParamUnion, 0, len(r.Messages))
 
 	if llm.SaveContext {
@@ -60,6 +60,19 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 	cfg := openai.ChatCompletionNewParams{
 		Model:    model,
 		Messages: contents,
+	}
+
+	if r.ResponseSchema != nil {
+		cfg.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
+			OfJSONSchema: &openai.ResponseFormatJSONSchemaParam{
+				JSONSchema: openai.ResponseFormatJSONSchemaJSONSchemaParam{
+					Name:        r.ResponseSchema.Name,
+					Description: openai.String(r.ResponseSchema.Description),
+					Schema:      r.ResponseSchema.Schema,
+					Strict:      openai.Bool(true),
+				},
+			},
+		}
 	}
 
 	for _, msg := range r.Messages {
@@ -136,7 +149,7 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 	for idx, candidate := range response.Choices {
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
 			Text: []string{candidate.Message.Content},
-			SelectCandidate: func() {
+			SelectCandidateFunc: func() {
 				if llm.SaveContext {
 					p.history.Save(openai.AssistantMessage(candidate.Message.Content))
 				}
@@ -145,4 +158,12 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 	}
 
 	return &resp, nil
+}
+
+func (p *OpenAi) AdaptResponseSchema(schema *llmadapter.Schema) *openai.ResponseFormatJSONSchemaJSONSchemaParam {
+	if schema == nil {
+		return nil
+	}
+
+	return nil
 }

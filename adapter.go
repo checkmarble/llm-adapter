@@ -26,7 +26,7 @@ func NewLlmAdapter(opts ...llmOption) (*LlmAdapter, error) {
 	return &llm, nil
 }
 
-func (llm *LlmAdapter) ChatCompletion(ctx context.Context, r Request) (*Response, error) {
+func (llm *LlmAdapter) ChatCompletion(ctx context.Context, r InnerRequest) (*Response, error) {
 	return llm.provider.ChatCompletions(ctx, llm, r)
 }
 
