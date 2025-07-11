@@ -39,6 +39,7 @@ type Message struct {
 type innerRequest struct {
 	Model          *string
 	Messages       []Message
+	Grounding      bool
 	ResponseSchema *schema
 	Tools          map[string]Tool
 }
@@ -188,6 +189,16 @@ func (r Request[T]) WithTextReader(role MessageRole, parts ...io.Reader) Request
 		Role:  role,
 		Parts: parts,
 	})
+
+	return r
+}
+
+// WithGrounding turns on public grounding for a specific request.
+//
+// It will only have an effect on provider supporting public methods to ground
+// requests.
+func (r Request[T]) WithGrounding() Request[T] {
+	r.Grounding = true
 
 	return r
 }

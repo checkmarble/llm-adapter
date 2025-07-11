@@ -1,6 +1,8 @@
 package llmadapter
 
-import "context"
+import (
+	"context"
+)
 
 type Llm interface {
 	Init(llm Adapter) error

@@ -22,7 +22,19 @@ type Response struct {
 type ResponseCandidate struct {
 	Text            string
 	ToolCalls       []ResponseToolCall
+	Grounding       *ResponseGrounding
 	SelectCandidate func()
+}
+
+type ResponseGrounding struct {
+	Searches []string
+	Sources  []ResponseGroudingSource
+	Snippets []string
+}
+
+type ResponseGroudingSource struct {
+	Domain string
+	Url    string
 }
 
 // ResponseToolCall is a request from an LLM provider to execute a tool.

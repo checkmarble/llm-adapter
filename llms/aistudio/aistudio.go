@@ -77,12 +77,18 @@ func (p *AiStudio) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, r
 
 	cfg := genai.GenerateContentConfig{}
 
+	if r.Grounding {
+		cfg.Tools = []*genai.Tool{{
+			GoogleSearch: &genai.GoogleSearch{},
+		}}
+	}
+
 	if r.ResponseSchema != nil {
 		cfg.ResponseMIMEType = "application/json"
 		cfg.ResponseJsonSchema = r.ResponseSchema.Schema
 	}
 
-	cfg.Tools = lo.MapToSlice(r.Tools, func(fn string, t llmadapter.Tool) *genai.Tool {
+	cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(fn string, t llmadapter.Tool) *genai.Tool {
 		return &genai.Tool{
 			FunctionDeclarations: []*genai.FunctionDeclaration{
 				{
@@ -92,7 +98,7 @@ func (p *AiStudio) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, r
 				},
 			},
 		}
-	})
+	})...)
 
 Messages:
 	for _, msg := range r.Messages {
@@ -177,6 +183,23 @@ Messages:
 			return nil, errors.New("LLM provider generated no content")
 		}
 
+		var grounding *llmadapter.ResponseGrounding
+
+		if candidate.GroundingMetadata != nil {
+			grounding = &llmadapter.ResponseGrounding{
+				Searches: candidate.GroundingMetadata.WebSearchQueries,
+				Sources: lo.Map(candidate.GroundingMetadata.GroundingChunks, func(c *genai.GroundingChunk, _ int) llmadapter.ResponseGroudingSource {
+					return llmadapter.ResponseGroudingSource{
+						Domain: c.Web.Domain,
+						Url:    c.Web.URI,
+					}
+				}),
+				Snippets: lo.Map(candidate.GroundingMetadata.GroundingSupports, func(s *genai.GroundingSupport, _ int) string {
+					return s.Segment.Text
+				}),
+			}
+		}
+
 		toolCalls := make([]llmadapter.ResponseToolCall, len(response.FunctionCalls()))
 
 		for idx, toolCall := range response.FunctionCalls() {
@@ -195,6 +218,7 @@ Messages:
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
 			Text:      candidate.Content.Parts[0].Text,
 			ToolCalls: toolCalls,
+			Grounding: grounding,
 			SelectCandidate: func() {
 				if llm.SaveContext() {
 					p.history.Save(candidate.Content)
