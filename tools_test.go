@@ -84,8 +84,7 @@ func TestToolNotCalled(t *testing.T) {
 
 	req := NewUntypedRequest().FromCandidate(resp, 0).WithToolExecution(tool)
 
-	assert.NotNil(t, req.err)
-	assert.Contains(t, req.err.Error(), "no tool was registered")
+	assert.ErrorContains(t, req.err, "no tool was registered")
 	assert.Equal(t, 0, called)
 }
 
@@ -119,7 +118,6 @@ func TestToolError(t *testing.T) {
 
 	req := NewUntypedRequest().FromCandidate(resp, 0).WithToolExecution(tool)
 
-	assert.NotNil(t, req.err)
-	assert.Contains(t, req.err.Error(), "something went wrong")
+	assert.ErrorContains(t, req.err, "something went wrong")
 	assert.Equal(t, 10, called)
 }

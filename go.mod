@@ -4,10 +4,12 @@ go 1.24.4
 
 require (
 	github.com/cockroachdb/errors v1.12.0
+	github.com/h2non/gock v1.2.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/k0kubun/pp/v3 v3.5.0
 	github.com/openai/openai-go v1.9.0
 	github.com/samber/lo v1.51.0
+	github.com/stretchr/testify v1.10.0
 	google.golang.org/genai v1.15.0
 )
 
@@ -27,7 +29,6 @@ require (
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/h2non/gock v1.2.0 // indirect
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -37,7 +38,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
