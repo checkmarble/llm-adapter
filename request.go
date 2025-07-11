@@ -84,7 +84,9 @@ func NewUntypedRequest() Request[string] {
 //		WithText(llmadapter.RoleUser, "How are you today?").
 //		Do(ctx, llm)
 func NewRequest[T any]() Request[T] {
-	r := innerRequest{}
+	r := innerRequest{
+		Tools: make(map[string]Tool),
+	}
 
 	switch any(*new(T)).(type) {
 	case string:
@@ -246,7 +248,7 @@ func (r Request[T]) WithToolExecution(tools ...Tool) Request[T] {
 		tool, ok := r.Tools[toolCall.Name]
 
 		if !ok {
-			r.err = errors.Wrapf(r.err, "no tool was registered for response to tool '%s'", toolCall.Name)
+			r.err = errors.CombineErrors(r.err, errors.Newf("no tool was registered for response to tool '%s'", toolCall.Name))
 			return r
 		}
 
