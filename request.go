@@ -12,7 +12,7 @@ import (
 
 type (
 	MessageRole int
-	MessageType string
+	MessageType int
 )
 
 const (
@@ -23,15 +23,8 @@ const (
 )
 
 const (
-	TypeText = "text/plain"
+	TypeText MessageType = iota
 )
-
-type InnerRequest struct {
-	Model          *string
-	Messages       []Message
-	ResponseSchema *Schema
-	Tools          map[string]Tool
-}
 
 type Message struct {
 	Type  MessageType
@@ -41,41 +34,75 @@ type Message struct {
 	Tool *ResponseToolCall
 }
 
-type TypedRequest[T any] struct {
-	InnerRequest
+// innerRequest represents the actual request to be sent to the
+// provider, before being adapted for it.
+type innerRequest struct {
+	Model          *string
+	Messages       []Message
+	ResponseSchema *schema
+	Tools          map[string]Tool
+}
+
+// Request represent a request to be sent the an LLM provider, in the
+// context of the current conversation.
+//
+// It contains an `innerRequest` built by the caller, but also optionally
+// tracks which candidate it responds to, in order to link tool responses
+// to their corresponding tool calls.
+//
+// It is generic in T which it will use to unmarshal the reponse into a
+// typed struct.
+type Request[T any] struct {
+	innerRequest
 
 	respondsTo *ResponseCandidate
 	err        error
 }
 
-func NewUntypedRequest() TypedRequest[string] {
-	return TypedRequest[string]{
-		InnerRequest: InnerRequest{
+// NewUntypedRequest is a helper method to create a `Request` which will be
+// a raw string, without unmarshalling the response into a struct.
+func NewUntypedRequest() Request[string] {
+	return Request[string]{
+		innerRequest: innerRequest{
 			Tools: make(map[string]Tool),
 		},
 	}
 }
 
-func NewRequest[T any]() TypedRequest[T] {
-	r := InnerRequest{}
+// NewRequest creates a builder to craft a reques to sent to an LLM provider.
+//
+// It provides a series of methods to chain-call in order to add context and prompts.
+//
+// It is generic in T, which will be used to generate a JSONSchema to be used as
+// a response schema in the request. See [this](https://github.com/invopop/jsonschema)
+// for more information about how to write the structs.
+//
+// Example usage:
+//
+//	resp, err := llmadapter.NewRequest[Output]().
+//		WithText(llmadapter.RoleUser, "How are you today?").
+//		Do(ctx, llm)
+func NewRequest[T any]() Request[T] {
+	r := innerRequest{}
 
 	switch any(*new(T)).(type) {
 	case string:
 	default:
-		r.ResponseSchema = lo.ToPtr(GenerateSchema[T]("", ""))
+		r.ResponseSchema = lo.ToPtr(generateSchema[T]("", ""))
 	}
 
-	return TypedRequest[T]{
-		InnerRequest: r,
+	return Request[T]{
+		innerRequest: r,
 	}
 }
 
-func (r TypedRequest[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedResponse[T], error) {
+// Do executes a built request on the configured LLM provider.
+func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedResponse[T], error) {
 	if r.err != nil {
 		return nil, r.err
 	}
 
-	resp, err := llm.ChatCompletion(ctx, r.InnerRequest)
+	resp, err := llm.provider.ChatCompletion(ctx, llm, r)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +110,13 @@ func (r TypedRequest[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedRespons
 	return &TypedResponse[T]{*resp}, nil
 }
 
-func (r TypedRequest[T]) FromCandidate(c Candidater, idx int) TypedRequest[T] {
+// FromCandidate selects a candidate/choice from a previous response as the base
+// for this Request.
+//
+// Selecting a candidate will have two effects:
+//   - Adding the candidate to the history (if it is enabled).
+//   - Using this response tool calls as a basis for tool responses, if applicable.
+func (r Request[T]) FromCandidate(c Candidater, idx int) Request[T] {
 	candidate, err := c.Candidate(idx)
 	if err != nil {
 		r.err = errors.CombineErrors(r.err, err)
@@ -91,18 +124,25 @@ func (r TypedRequest[T]) FromCandidate(c Candidater, idx int) TypedRequest[T] {
 	}
 
 	r.respondsTo = candidate
-	candidate.SelectCandidateFunc()
+	candidate.SelectCandidate()
 
 	return r
 }
 
-func (r TypedRequest[T]) WithModel(model string) TypedRequest[T] {
+// WithModel overrides the model used for this specific request.
+//
+// If not provided, the default model set on the adapter will be used.
+func (r Request[T]) WithModel(model string) Request[T] {
 	r.Model = &model
 
 	return r
 }
 
-func (r TypedRequest[T]) WithInstruction(parts ...string) TypedRequest[T] {
+// WithInstruction adds a system prompt to the request.
+//
+// Note that if the adapter is configured to save history, this need only be
+// added on the first request sent to the provider.
+func (r Request[T]) WithInstruction(parts ...string) Request[T] {
 	r.Messages = append(r.Messages, Message{
 		Type: TypeText,
 		Role: RoleSystem,
@@ -114,7 +154,8 @@ func (r TypedRequest[T]) WithInstruction(parts ...string) TypedRequest[T] {
 	return r
 }
 
-func (r TypedRequest[T]) WithInstructionReader(parts ...io.Reader) TypedRequest[T] {
+// WithInstructionReader adds a system prompt read from an `io.Reader`.
+func (r Request[T]) WithInstructionReader(parts ...io.Reader) Request[T] {
 	r.Messages = append(r.Messages, Message{
 		Type:  TypeText,
 		Role:  RoleSystem,
@@ -124,7 +165,11 @@ func (r TypedRequest[T]) WithInstructionReader(parts ...io.Reader) TypedRequest[
 	return r
 }
 
-func (r TypedRequest[T]) WithText(role MessageRole, parts ...string) TypedRequest[T] {
+// WithText adds a text message to the Request.
+//
+// Each provided `string` will be added as a discrete `part` in the message. The
+// message will be declared as text content.
+func (r Request[T]) WithText(role MessageRole, parts ...string) Request[T] {
 	r.Messages = append(r.Messages, Message{
 		Type: TypeText,
 		Role: role,
@@ -136,7 +181,8 @@ func (r TypedRequest[T]) WithText(role MessageRole, parts ...string) TypedReques
 	return r
 }
 
-func (r TypedRequest[T]) WithTextReader(role MessageRole, parts ...io.Reader) TypedRequest[T] {
+// WithTextReader adds a message to the Request read from an `io.Reader`
+func (r Request[T]) WithTextReader(role MessageRole, parts ...io.Reader) Request[T] {
 	r.Messages = append(r.Messages, Message{
 		Type:  TypeText,
 		Role:  role,
@@ -146,7 +192,10 @@ func (r TypedRequest[T]) WithTextReader(role MessageRole, parts ...io.Reader) Ty
 	return r
 }
 
-func (r TypedRequest[T]) WithTools(tools ...Tool) TypedRequest[T] {
+// WithTools adds tool definitions to the request.
+//
+// See `tools.go` for more information about how to define tools.
+func (r Request[T]) WithTools(tools ...Tool) Request[T] {
 	for _, tool := range tools {
 		r.Tools[tool.Name] = tool
 	}
@@ -154,7 +203,7 @@ func (r TypedRequest[T]) WithTools(tools ...Tool) TypedRequest[T] {
 	return r
 }
 
-func (r TypedRequest[T]) withToolResponse(tool ResponseToolCall, parts string) TypedRequest[T] {
+func (r Request[T]) withToolResponse(tool ResponseToolCall, parts string) Request[T] {
 	r.Messages = append(r.Messages, Message{
 		Type:  TypeText,
 		Role:  RoleTool,
@@ -165,7 +214,14 @@ func (r TypedRequest[T]) withToolResponse(tool ResponseToolCall, parts string) T
 	return r
 }
 
-func (r TypedRequest[T]) WithToolExecution(tools ...Tool) TypedRequest[T] {
+// WithToolExecution executes the requested tools and add their output to the Request.
+//
+// It will also take care of adding the matching tool definitions to the Request, so there
+// is not need to also call `WithTool`.
+//
+// Note that this requires that a candidate from the previous reponse was selected by
+// calling `FromCandidate()` before this function.
+func (r Request[T]) WithToolExecution(tools ...Tool) Request[T] {
 	if r.respondsTo == nil {
 		r.err = errors.CombineErrors(r.err, errors.New("cannot execute tool %s without selecting a response candidate, call FromCandidate() first"))
 		return r
@@ -183,7 +239,7 @@ func (r TypedRequest[T]) WithToolExecution(tools ...Tool) TypedRequest[T] {
 			return r
 		}
 
-		resp, err := tool.Call(toolCall.Parameters)
+		resp, err := tool.call(toolCall.Parameters)
 		if err != nil {
 			r.err = errors.CombineErrors(r.err, err)
 			return r
@@ -195,23 +251,23 @@ func (r TypedRequest[T]) WithToolExecution(tools ...Tool) TypedRequest[T] {
 	return r
 }
 
-type Schema struct {
+type schema struct {
 	Name        string
 	Description string
 	Schema      jsonschema.Schema
 }
 
-func GenerateSchema[S any](name string, description string) Schema {
+func generateSchema[S any](name string, description string) schema {
 	reflector := jsonschema.Reflector{
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
 
-	schema := reflector.Reflect(new(S))
+	jsonSchema := reflector.Reflect(new(S))
 
-	return Schema{
+	return schema{
 		Name:        name,
 		Description: description,
-		Schema:      *schema,
+		Schema:      *jsonSchema,
 	}
 }

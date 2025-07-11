@@ -19,7 +19,7 @@ type OpenAi struct {
 	baseUrl string
 }
 
-func New(opts ...llmOption) (*OpenAi, error) {
+func New(opts ...opt) (*OpenAi, error) {
 	llm := OpenAi{}
 
 	for _, opt := range opts {
@@ -29,9 +29,9 @@ func New(opts ...llmOption) (*OpenAi, error) {
 	return &llm, nil
 }
 
-func (p *OpenAi) Init(adapter llmadapter.LlmAdapter) error {
+func (p *OpenAi) Init(llm llmadapter.Adapter) error {
 	opts := []option.RequestOption{
-		option.WithAPIKey(adapter.ApiKey),
+		option.WithAPIKey(llm.ApiKey()),
 	}
 
 	if p.baseUrl != "" {
@@ -47,14 +47,15 @@ func (p *OpenAi) ResetContext() {
 	p.history.Clear()
 }
 
-func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter, r llmadapter.InnerRequest) (*llmadapter.Response, error) {
+func (p *OpenAi) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
+	r := requester.ToRequest()
 	contents := make([]openai.ChatCompletionMessageParamUnion, 0, len(r.Messages))
 
-	if llm.SaveContext {
+	if llm.SaveContext() {
 		contents = append(contents, p.history.Load()...)
 	}
 
-	model := llm.DefaultModel
+	model := llm.DefaultModel()
 	if r.Model != nil {
 		model = *r.Model
 	}
@@ -167,7 +168,7 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 			}
 		}
 
-		if llm.SaveContext {
+		if llm.SaveContext() {
 			p.history.Save(content)
 		}
 
@@ -196,10 +197,10 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 		}
 
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
-			Text:      []string{candidate.Message.Content},
+			Text:      candidate.Message.Content,
 			ToolCalls: toolCalls,
-			SelectCandidateFunc: func() {
-				if llm.SaveContext {
+			SelectCandidate: func() {
+				if llm.SaveContext() {
 					msg := openai.ChatCompletionMessageParamUnion{
 						OfAssistant: &openai.ChatCompletionAssistantMessageParam{
 							ToolCalls: candidate.Message.ToParam().GetToolCalls(),
@@ -216,12 +217,4 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 	}
 
 	return &resp, nil
-}
-
-func (p *OpenAi) AdaptResponseSchema(schema *llmadapter.Schema) *openai.ResponseFormatJSONSchemaJSONSchemaParam {
-	if schema == nil {
-		return nil
-	}
-
-	return nil
 }

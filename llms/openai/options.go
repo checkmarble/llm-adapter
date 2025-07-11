@@ -1,8 +1,11 @@
 package openai
 
-type llmOption func(*OpenAi)
+type opt func(*OpenAi)
 
-func WithBaseUrl(url string) llmOption {
+// WithBaseUrl sets the URL at which the OpenAI-compatible API is available.
+//
+// If not specified, will use OpenAI's API.
+func WithBaseUrl(url string) opt {
 	return func(p *OpenAi) {
 		p.baseUrl = url
 	}

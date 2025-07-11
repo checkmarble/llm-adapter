@@ -32,17 +32,20 @@ func New(opts ...opt) (*AiStudio, error) {
 	return &llm, nil
 }
 
-func (p *AiStudio) Init(adapter llmadapter.LlmAdapter) error {
+func (p *AiStudio) Init(adapter llmadapter.Adapter) error {
 	cfg := genai.ClientConfig{
-		Project:  p.project,
-		Location: p.location,
+		Backend: genai.BackendGeminiAPI,
 	}
 
 	if p.backend != genai.BackendUnspecified {
 		cfg.Backend = p.backend
 	}
-	if cfg.Backend == genai.BackendGeminiAPI {
-		cfg.APIKey = adapter.ApiKey
+	switch cfg.Backend {
+	case genai.BackendGeminiAPI:
+		cfg.APIKey = adapter.ApiKey()
+	case genai.BackendVertexAI:
+		cfg.Project = p.project
+		cfg.Location = p.location
 	}
 
 	client, err := genai.NewClient(context.Background(), &cfg)
@@ -59,14 +62,15 @@ func (p *AiStudio) ResetContext() {
 	p.history.Clear()
 }
 
-func (p *AiStudio) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter, r llmadapter.InnerRequest) (*llmadapter.Response, error) {
+func (p *AiStudio) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
+	r := requester.ToRequest()
 	contents := make([]*genai.Content, 0, len(r.Messages))
 
-	if llm.SaveContext {
+	if llm.SaveContext() {
 		contents = append(contents, p.history.Load()...)
 	}
 
-	model := llm.DefaultModel
+	model := llm.DefaultModel()
 	if r.Model != nil {
 		model = *r.Model
 	}
@@ -129,7 +133,7 @@ Messages:
 
 			contents = append(contents, msg)
 
-			if llm.SaveContext {
+			if llm.SaveContext() {
 				p.history.Save(msg)
 			}
 
@@ -139,7 +143,7 @@ Messages:
 				Parts: parts,
 			}
 
-			if llm.SaveContext {
+			if llm.SaveContext() {
 				p.history.Save(cfg.SystemInstruction)
 			}
 
@@ -151,7 +155,7 @@ Messages:
 			Parts: parts,
 		}
 
-		if llm.SaveContext {
+		if llm.SaveContext() {
 			p.history.Save(content)
 		}
 
@@ -169,6 +173,10 @@ Messages:
 	}
 
 	for idx, candidate := range response.Candidates {
+		if len(candidate.Content.Parts) == 0 {
+			return nil, errors.New("LLM provider generated no content")
+		}
+
 		toolCalls := make([]llmadapter.ResponseToolCall, len(response.FunctionCalls()))
 
 		for idx, toolCall := range response.FunctionCalls() {
@@ -185,12 +193,10 @@ Messages:
 		}
 
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
-			Text: lo.Map(candidate.Content.Parts, func(part *genai.Part, index int) string {
-				return part.Text
-			}),
+			Text:      candidate.Content.Parts[0].Text,
 			ToolCalls: toolCalls,
-			SelectCandidateFunc: func() {
-				if llm.SaveContext {
+			SelectCandidate: func() {
+				if llm.SaveContext() {
 					p.history.Save(candidate.Content)
 				}
 			},

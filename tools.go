@@ -7,6 +7,7 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
+// Tool is a tool function definition.
 type Tool struct {
 	Name        string
 	Description string
@@ -20,23 +21,32 @@ type functionBody struct {
 	inner any
 }
 
+// Function is a wrapper for the code executed in a tool.
+//
+// It is generic in I, which is a type containing the tool arguments. It
+// follows the same idioms as a response schema.
 func Function[I any](f func(I) (string, error)) functionBody {
 	return functionBody{any(f)}
 }
 
+// NewTool creates a new tool.
+//
+// It is generic in the type of the tool arguments, and takes the tool name
+// and description.
+//
+// The function body should be wrapped in `Function`.
 func NewTool[T any](name, description string, fn functionBody) Tool {
 	return Tool{
 		Name:        name,
 		Description: description,
-		Parameters:  GenerateSchema[T]("", "").Schema,
+		Parameters:  generateSchema[T]("", "").Schema,
 		input:       *new(T),
 		function:    fn,
 	}
 }
 
-func (t Tool) Call(paramsJson []byte) (string, error) {
-	paramsType := reflect.TypeOf(t.input)
-	params := reflect.New(paramsType).Interface()
+func (t Tool) call(paramsJson []byte) (string, error) {
+	params := reflect.New(reflect.TypeOf(t.input)).Interface()
 
 	if err := json.Unmarshal(paramsJson, &params); err != nil {
 		return "", err

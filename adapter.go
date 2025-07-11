@@ -1,19 +1,28 @@
 package llmadapter
 
 import (
-	"context"
-
 	"github.com/cockroachdb/errors"
 )
 
+// LlmAdapter is the main entrypoint for interacting with different LLM providers.
+// It provides a unified interface to send requests and receive responses.
 type LlmAdapter struct {
 	provider Llm
 
-	DefaultModel string
-	ApiKey       string
-	SaveContext  bool
+	defaultModel string
+	apiKey       string
+	saveContext  bool
 }
 
+// NewLlmAdapter creates a new LlmAdapter with the given options.
+// It initializes the specified LLM provider and returns a configured adapter.
+//
+// Example usage:
+//
+//	adapter, err := llmadapter.NewLlmAdapter(
+//		llmadapter.WithOpenAI("your-api-key"),
+//		llmadapter.WithDefaultModel("gpt-4"),
+//	)
 func NewLlmAdapter(opts ...llmOption) (*LlmAdapter, error) {
 	llm := LlmAdapter{}
 
@@ -28,10 +37,9 @@ func NewLlmAdapter(opts ...llmOption) (*LlmAdapter, error) {
 	return &llm, nil
 }
 
-func (llm *LlmAdapter) ChatCompletion(ctx context.Context, r InnerRequest) (*Response, error) {
-	return llm.provider.ChatCompletions(ctx, llm, r)
-}
-
+// ResetContext clears the conversation history maintained by the adapter.
+// This is useful when you want to start a new conversation without creating a
+// new adapter instance. This also clears the systems instructions.
 func (llm *LlmAdapter) ResetContext() {
 	llm.provider.ResetContext()
 }

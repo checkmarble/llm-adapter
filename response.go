@@ -4,35 +4,32 @@ import (
 	"encoding/json"
 
 	"github.com/cockroachdb/errors"
-	"github.com/samber/lo"
 )
 
+// Candidater represents a type that can have several candidates.
 type Candidater interface {
 	NumCandidates() int
 	Candidate(int) (*ResponseCandidate, error)
 }
 
+// Response is a response from an LLM provider.
 type Response struct {
 	Model      string
 	Candidates []ResponseCandidate
 }
 
+// ResponseCandidate represent a response from an LLM provider.
 type ResponseCandidate struct {
-	Text                []string
-	ToolCalls           []ResponseToolCall
-	SelectCandidateFunc func()
+	Text            string
+	ToolCalls       []ResponseToolCall
+	SelectCandidate func()
 }
 
+// ResponseToolCall is a request from an LLM provider to execute a tool.
 type ResponseToolCall struct {
 	Id         string
 	Name       string
 	Parameters []byte
-}
-
-func (r Response) SelectCandidate(idx int) []string {
-	r.Candidates[idx].SelectCandidateFunc()
-
-	return r.Candidates[idx].Text
 }
 
 type TypedResponse[T any] struct {
@@ -51,28 +48,24 @@ func (r TypedResponse[T]) Candidate(idx int) (*ResponseCandidate, error) {
 	return &r.Candidates[idx], nil
 }
 
-func (r TypedResponse[T]) Get(idx int) ([]T, error) {
+func (r TypedResponse[T]) Get(idx int) (T, error) {
 	if idx > len(r.Candidates)-1 {
-		return nil, errors.Newf("candidate %d does not exist (%d candidates)", idx, len(r.Candidates))
+		return *new(T), errors.Newf("candidate %d does not exist (%d candidates)", idx, len(r.Candidates))
 	}
 
 	candidate := r.Candidates[idx]
 
 	switch any(*new(T)).(type) {
 	case string:
-		return any(lo.Map(candidate.Text, func(s string, _ int) string {
-			return s
-		})).([]T), nil
+		return any(candidate.Text).(T), nil
 
 	default:
-		outputs := make([]T, len(candidate.Text))
+		output := new(T)
 
-		for idx, item := range candidate.Text {
-			if err := json.Unmarshal([]byte(item), &outputs[idx]); err != nil {
-				return nil, errors.Wrap(err, "failed to decode response to schema")
-			}
+		if err := json.Unmarshal([]byte(candidate.Text), output); err != nil {
+			return *new(T), errors.Wrap(err, "failed to decode response to schema")
 		}
 
-		return outputs, nil
+		return *output, nil
 	}
 }
