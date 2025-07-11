@@ -30,3 +30,9 @@ func WithLocation(location string) opt {
 		p.location = location
 	}
 }
+
+func WithDefaultModel(model string) opt {
+	return func(p *AiStudio) {
+		p.model = &model
+	}
+}

@@ -15,7 +15,7 @@ func main() {
 
 	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendVertexAI), aistudio.WithProject(os.Getenv("GOOGLE_CLOUD_PROJECT")), aistudio.WithLocation("europe-west1"))
 	llm, _ := llmadapter.NewLlmAdapter(
-		llmadapter.WithProvider(provider),
+		llmadapter.WithProvider("vertex", provider),
 		llmadapter.WithDefaultModel("gemini-2.5-flash"),
 		llmadapter.WithApiKey(os.Getenv("LLM_API_KEY")),
 		llmadapter.WithSaveContext(),

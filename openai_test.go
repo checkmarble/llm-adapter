@@ -29,7 +29,7 @@ const openaiResponse = `
 }
 `
 
-func TestFullRequest(t *testing.T) {
+func TestOpenAiRequest(t *testing.T) {
 	defer gock.Off()
 
 	type Output struct {
@@ -42,7 +42,7 @@ func TestFullRequest(t *testing.T) {
 
 	reader := strings.NewReader("text from reader")
 	provider, _ := openai.New()
-	llm, _ := llmadapter.NewLlmAdapter(llmadapter.WithProvider(provider), llmadapter.WithApiKey("apikey"))
+	llm, _ := llmadapter.NewLlmAdapter(llmadapter.WithDefaultProvider(provider), llmadapter.WithApiKey("apikey"))
 
 	req := llmadapter.NewRequest[Output]().
 		WithModel("themodel").

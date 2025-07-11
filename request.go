@@ -56,6 +56,7 @@ type innerRequest struct {
 type Request[T any] struct {
 	innerRequest
 
+	provider   *string
 	respondsTo *ResponseCandidate
 	err        error
 }
@@ -104,13 +105,33 @@ func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedResponse[T],
 	if r.err != nil {
 		return nil, r.err
 	}
+	if llm.defaultProvider == nil {
+		return nil, errors.New("no provider was configured")
+	}
 
-	resp, err := llm.provider.ChatCompletion(ctx, llm, r)
+	provider := llm.defaultProvider
+
+	if r.provider != nil {
+		p, ok := llm.providers[*r.provider]
+		if !ok {
+			return nil, errors.Newf("unknown provider '%s'", *r.provider)
+		}
+
+		provider = p
+	}
+
+	resp, err := provider.ChatCompletion(ctx, llm, r)
 	if err != nil {
 		return nil, err
 	}
 
 	return &TypedResponse[T]{*resp}, nil
+}
+
+func (r Request[T]) WithProvider(name string) Request[T] {
+	r.provider = &name
+
+	return r
 }
 
 // FromCandidate selects a candidate/choice from a previous response as the base

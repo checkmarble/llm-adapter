@@ -17,6 +17,7 @@ type OpenAi struct {
 	history llmadapter.History[openai.ChatCompletionMessageParamUnion]
 
 	baseUrl string
+	model   *string
 }
 
 func New(opts ...opt) (*OpenAi, error) {
@@ -55,13 +56,13 @@ func (p *OpenAi) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, req
 		contents = append(contents, p.history.Load()...)
 	}
 
-	model := llm.DefaultModel()
-	if r.Model != nil {
-		model = *r.Model
+	model, ok := lo.Coalesce(r.Model, p.model, lo.ToPtr(llm.DefaultModel()))
+	if !ok {
+		return nil, errors.New("no model was configured")
 	}
 
 	cfg := openai.ChatCompletionNewParams{
-		Model:    model,
+		Model:    *model,
 		Messages: contents,
 	}
 

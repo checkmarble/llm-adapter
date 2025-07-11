@@ -2,10 +2,26 @@ package llmadapter
 
 type llmOption func(*LlmAdapter)
 
-// WithProvider sets what LLM provider to use for communication.
-func WithProvider(provider Llm) llmOption {
+// WithDefaultProvider sets what LLM provider to use for communication.
+func WithDefaultProvider(provider Llm) llmOption {
 	return func(llm *LlmAdapter) {
-		llm.provider = provider
+		llm.providers[defaultProvider] = provider
+		llm.defaultProvider = llm.providers[defaultProvider]
+	}
+}
+
+// WithProvider registers a provider.
+//
+// The first one to be registered will become the default, unless a default
+// was already or is defined later with `SetDefaultProvider`.
+func WithProvider(name string, provider Llm) llmOption {
+	return func(llm *LlmAdapter) {
+		llm.providers[name] = provider
+
+		if llm.defaultProvider == nil {
+			llm.defaultProvider = llm.providers[name]
+			llm.providers[defaultProvider] = llm.providers[name]
+		}
 	}
 }
 

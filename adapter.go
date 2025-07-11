@@ -4,10 +4,15 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
+const (
+	defaultProvider = "__DEFAULT__"
+)
+
 // LlmAdapter is the main entrypoint for interacting with different LLM providers.
 // It provides a unified interface to send requests and receive responses.
 type LlmAdapter struct {
-	provider Llm
+	providers       map[string]Llm
+	defaultProvider Llm
 
 	defaultModel string
 	apiKey       string
@@ -24,14 +29,18 @@ type LlmAdapter struct {
 //		llmadapter.WithDefaultModel("gpt-4"),
 //	)
 func NewLlmAdapter(opts ...llmOption) (*LlmAdapter, error) {
-	llm := LlmAdapter{}
+	llm := LlmAdapter{
+		providers: make(map[string]Llm),
+	}
 
 	for _, opt := range opts {
 		opt(&llm)
 	}
 
-	if err := llm.provider.Init(llm); err != nil {
-		return nil, errors.Wrap(err, "could not initialize LLM provider")
+	for name, provider := range llm.providers {
+		if err := provider.Init(llm); err != nil {
+			return nil, errors.Wrapf(err, "could not initialize LLM provider '%s'", name)
+		}
 	}
 
 	return &llm, nil
@@ -40,6 +49,14 @@ func NewLlmAdapter(opts ...llmOption) (*LlmAdapter, error) {
 // ResetContext clears the conversation history maintained by the adapter.
 // This is useful when you want to start a new conversation without creating a
 // new adapter instance. This also clears the systems instructions.
-func (llm *LlmAdapter) ResetContext() {
-	llm.provider.ResetContext()
+func (llm *LlmAdapter) ResetContext(providers ...string) {
+	if len(providers) == 0 {
+		llm.defaultProvider.ResetContext()
+	}
+
+	for _, provider := range providers {
+		if _, ok := llm.providers[provider]; ok {
+			llm.providers[provider].ResetContext()
+		}
+	}
 }

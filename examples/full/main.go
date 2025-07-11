@@ -26,7 +26,7 @@ func main() {
 	}
 
 	llm, err := llmadapter.NewLlmAdapter(
-		llmadapter.WithProvider(provider),
+		llmadapter.WithProvider("vertex", provider),
 		llmadapter.WithDefaultModel("gemini-2.5-pro"),
 		llmadapter.WithApiKey(os.Getenv("LLM_API_KEY")),
 		llmadapter.WithSaveContext(),
@@ -36,7 +36,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	systemPrompt, _ := os.Open("../prompts/system.txt")
+	systemPrompt, _ := os.Open("prompts/system.txt")
 
 	resp1, err := llmadapter.NewRequest[Output]().
 		WithInstructionReader(systemPrompt).

@@ -10,3 +10,9 @@ func WithBaseUrl(url string) opt {
 		p.baseUrl = url
 	}
 }
+
+func WithDefaultModel(model string) opt {
+	return func(p *OpenAi) {
+		p.model = &model
+	}
+}

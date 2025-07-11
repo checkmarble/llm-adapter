@@ -18,6 +18,7 @@ type AiStudio struct {
 	backend  genai.Backend
 	project  string
 	location string
+	model    *string
 }
 
 func New(opts ...opt) (*AiStudio, error) {
@@ -70,9 +71,9 @@ func (p *AiStudio) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, r
 		contents = append(contents, p.history.Load()...)
 	}
 
-	model := llm.DefaultModel()
-	if r.Model != nil {
-		model = *r.Model
+	model, ok := lo.Coalesce(r.Model, p.model, lo.ToPtr(llm.DefaultModel()))
+	if !ok {
+		return nil, errors.New("no model was configured")
 	}
 
 	cfg := genai.GenerateContentConfig{}
@@ -168,7 +169,7 @@ Messages:
 		contents = append(contents, content)
 	}
 
-	response, err := p.client.Models.GenerateContent(ctx, model, contents, &cfg)
+	response, err := p.client.Models.GenerateContent(ctx, *model, contents, &cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "LLM provider failed to generate content")
 	}
