@@ -2,6 +2,8 @@ package llmadapter
 
 import (
 	"context"
+
+	"github.com/cockroachdb/errors"
 )
 
 type LlmAdapter struct {
@@ -20,7 +22,7 @@ func NewLlmAdapter(opts ...llmOption) (*LlmAdapter, error) {
 	}
 
 	if err := llm.provider.Init(llm); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not initialize LLM provider")
 	}
 
 	return &llm, nil

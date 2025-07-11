@@ -6,6 +6,7 @@ import (
 	"io"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
+	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
 	"google.golang.org/genai"
 )
@@ -14,12 +15,15 @@ type AiStudio struct {
 	client  *genai.Client
 	history llmadapter.History[*genai.Content]
 
+	backend  genai.Backend
 	project  string
 	location string
 }
 
 func New(opts ...opt) (*AiStudio, error) {
-	llm := AiStudio{}
+	llm := AiStudio{
+		backend: genai.BackendGeminiAPI,
+	}
 
 	for _, opt := range opts {
 		opt(&llm)
@@ -30,10 +34,15 @@ func New(opts ...opt) (*AiStudio, error) {
 
 func (p *AiStudio) Init(adapter llmadapter.LlmAdapter) error {
 	cfg := genai.ClientConfig{
-		APIKey:   adapter.ApiKey,
-		Backend:  genai.BackendGeminiAPI,
 		Project:  p.project,
 		Location: p.location,
+	}
+
+	if p.backend != genai.BackendUnspecified {
+		cfg.Backend = p.backend
+	}
+	if cfg.Backend == genai.BackendGeminiAPI {
+		cfg.APIKey = adapter.ApiKey
 	}
 
 	client, err := genai.NewClient(context.Background(), &cfg)
@@ -86,7 +95,10 @@ Messages:
 		parts := make([]*genai.Part, 0, len(msg.Parts))
 
 		for _, part := range msg.Parts {
-			buf, _ := io.ReadAll(part)
+			buf, err := io.ReadAll(part)
+			if err != nil {
+				return nil, errors.Wrap(err, "could not read content part")
+			}
 
 			switch msg.Type {
 			case llmadapter.TypeText:
@@ -147,9 +159,8 @@ Messages:
 	}
 
 	response, err := p.client.Models.GenerateContent(ctx, model, contents, &cfg)
-
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "LLM provider failed to generate content")
 	}
 
 	resp := llmadapter.Response{
@@ -163,7 +174,7 @@ Messages:
 		for idx, toolCall := range response.FunctionCalls() {
 			params, err := json.Marshal(toolCall.Args)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to parse tool call parameters")
 			}
 
 			toolCalls[idx] = llmadapter.ResponseToolCall{

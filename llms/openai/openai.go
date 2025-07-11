@@ -6,6 +6,7 @@ import (
 	"io"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
+	"github.com/cockroachdb/errors"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/samber/lo"
@@ -77,11 +78,16 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 	}
 
 	for _, tool := range r.Tools {
-		paramsJson, _ := json.Marshal(tool.Parameters)
+		paramsJson, err := json.Marshal(tool.Parameters)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to encode tool parameters")
+		}
 
 		var params map[string]any
 
-		json.Unmarshal(paramsJson, &params)
+		if err := json.Unmarshal(paramsJson, &params); err != nil {
+			return nil, errors.Wrap(err, "failed to encode tool parameters")
+		}
 
 		cfg.Tools = append(cfg.Tools, openai.ChatCompletionToolParam{
 			Type: "function",
@@ -97,7 +103,10 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 		parts := make([]openai.ChatCompletionContentPartUnionParam, 0, len(msg.Parts))
 
 		for _, part := range msg.Parts {
-			buf, _ := io.ReadAll(part)
+			buf, err := io.ReadAll(part)
+			if err != nil {
+				return nil, errors.Wrap(err, "could not read content part")
+			}
 
 			switch msg.Type {
 			case llmadapter.TypeText:
@@ -166,9 +175,8 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 	}
 
 	response, err := p.client.Chat.Completions.New(ctx, cfg)
-
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "LLM provider failed to generate content")
 	}
 
 	resp := llmadapter.Response{

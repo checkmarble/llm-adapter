@@ -24,20 +24,14 @@ func Function[I any](f func(I) (string, error)) functionBody {
 	return functionBody{any(f)}
 }
 
-func NewTool[T any](name, description string, fn functionBody) (*Tool, error) {
-	schema, err := GenerateSchema[T]("", "")
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &Tool{
+func NewTool[T any](name, description string, fn functionBody) Tool {
+	return Tool{
 		Name:        name,
 		Description: description,
-		Parameters:  schema.Schema,
+		Parameters:  GenerateSchema[T]("", "").Schema,
 		input:       *new(T),
 		function:    fn,
-	}, nil
+	}
 }
 
 func (t Tool) Call(paramsJson []byte) (string, error) {

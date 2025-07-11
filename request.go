@@ -2,11 +2,12 @@ package llmadapter
 
 import (
 	"context"
-	"errors"
 	"io"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/invopop/jsonschema"
+	"github.com/samber/lo"
 )
 
 type (
@@ -56,14 +57,12 @@ func NewUntypedRequest() TypedRequest[string] {
 }
 
 func NewRequest[T any]() TypedRequest[T] {
-	schema, _ := GenerateSchema[T]("", "")
-
 	r := InnerRequest{}
 
 	switch any(*new(T)).(type) {
 	case string:
 	default:
-		r.ResponseSchema = schema
+		r.ResponseSchema = lo.ToPtr(GenerateSchema[T]("", ""))
 	}
 
 	return TypedRequest[T]{
@@ -84,14 +83,15 @@ func (r TypedRequest[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedRespons
 	return &TypedResponse[T]{*resp}, nil
 }
 
-func (r TypedRequest[T]) FromCandidate(resp Response, candidate int) TypedRequest[T] {
-	if candidate > len(resp.Candidates)-1 {
-		r.err = errors.Join(r.err, errors.New("selected candidate does not exist"))
+func (r TypedRequest[T]) FromCandidate(c Candidater, idx int) TypedRequest[T] {
+	candidate, err := c.Candidate(idx)
+	if err != nil {
+		r.err = errors.CombineErrors(r.err, err)
 		return r
 	}
 
-	r.respondsTo = &resp.Candidates[candidate]
-	resp.Candidates[candidate].SelectCandidateFunc()
+	r.respondsTo = candidate
+	candidate.SelectCandidateFunc()
 
 	return r
 }
@@ -102,7 +102,19 @@ func (r TypedRequest[T]) WithModel(model string) TypedRequest[T] {
 	return r
 }
 
-func (r TypedRequest[T]) WithSystemInstruction(parts ...io.Reader) TypedRequest[T] {
+func (r TypedRequest[T]) WithInstruction(parts ...string) TypedRequest[T] {
+	r.Messages = append(r.Messages, Message{
+		Type: TypeText,
+		Role: RoleSystem,
+		Parts: lo.Map(parts, func(p string, _ int) io.Reader {
+			return strings.NewReader(p)
+		}),
+	})
+
+	return r
+}
+
+func (r TypedRequest[T]) WithInstructionReader(parts ...io.Reader) TypedRequest[T] {
 	r.Messages = append(r.Messages, Message{
 		Type:  TypeText,
 		Role:  RoleSystem,
@@ -112,7 +124,19 @@ func (r TypedRequest[T]) WithSystemInstruction(parts ...io.Reader) TypedRequest[
 	return r
 }
 
-func (r TypedRequest[T]) WithText(role MessageRole, parts ...io.Reader) TypedRequest[T] {
+func (r TypedRequest[T]) WithText(role MessageRole, parts ...string) TypedRequest[T] {
+	r.Messages = append(r.Messages, Message{
+		Type: TypeText,
+		Role: role,
+		Parts: lo.Map(parts, func(p string, _ int) io.Reader {
+			return strings.NewReader(p)
+		}),
+	})
+
+	return r
+}
+
+func (r TypedRequest[T]) WithTextReader(role MessageRole, parts ...io.Reader) TypedRequest[T] {
 	r.Messages = append(r.Messages, Message{
 		Type:  TypeText,
 		Role:  role,
@@ -122,8 +146,10 @@ func (r TypedRequest[T]) WithText(role MessageRole, parts ...io.Reader) TypedReq
 	return r
 }
 
-func (r TypedRequest[T]) WithTool(tool *Tool) TypedRequest[T] {
-	r.Tools[tool.Name] = *tool
+func (r TypedRequest[T]) WithTools(tools ...Tool) TypedRequest[T] {
+	for _, tool := range tools {
+		r.Tools[tool.Name] = tool
+	}
 
 	return r
 }
@@ -139,26 +165,27 @@ func (r TypedRequest[T]) withToolResponse(tool ResponseToolCall, parts string) T
 	return r
 }
 
-func (r TypedRequest[T]) WithToolExecution(tools ...*Tool) TypedRequest[T] {
+func (r TypedRequest[T]) WithToolExecution(tools ...Tool) TypedRequest[T] {
 	if r.respondsTo == nil {
-		r.err = errors.Join(r.err, errors.New("cannot execute tool without selecting a response candidate, call FromCandidate() first"))
+		r.err = errors.CombineErrors(r.err, errors.New("cannot execute tool %s without selecting a response candidate, call FromCandidate() first"))
 		return r
 	}
-	for _, tool := range tools {
-		if tool == nil {
-			r.err = errors.Join(r.err, errors.New("unknown tool"))
-			return r
-		}
 
-		r = r.WithTool(tool)
+	for _, tool := range tools {
+		r = r.WithTools(tool)
 	}
 
 	for _, toolCall := range r.respondsTo.ToolCalls {
-		tool := r.Tools[toolCall.Name]
+		tool, ok := r.Tools[toolCall.Name]
+
+		if !ok {
+			r.err = errors.Wrapf(r.err, "no tool was registered for response to tool '%s'", toolCall.Name)
+			return r
+		}
 
 		resp, err := tool.Call(toolCall.Parameters)
 		if err != nil {
-			r.err = errors.Join(err)
+			r.err = errors.CombineErrors(r.err, err)
 			return r
 		}
 
@@ -174,20 +201,17 @@ type Schema struct {
 	Schema      jsonschema.Schema
 }
 
-func GenerateSchema[S any](name string, description string) (*Schema, error) {
+func GenerateSchema[S any](name string, description string) Schema {
 	reflector := jsonschema.Reflector{
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
 
 	schema := reflector.Reflect(new(S))
-	if schema == nil {
-		return nil, errors.New("invalid response schema")
-	}
 
-	return &Schema{
+	return Schema{
 		Name:        name,
 		Description: description,
 		Schema:      *schema,
-	}, nil
+	}
 }
