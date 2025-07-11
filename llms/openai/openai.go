@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
@@ -75,6 +76,23 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 		}
 	}
 
+	for _, tool := range r.Tools {
+		paramsJson, _ := json.Marshal(tool.Parameters)
+
+		var params map[string]any
+
+		json.Unmarshal(paramsJson, &params)
+
+		cfg.Tools = append(cfg.Tools, openai.ChatCompletionToolParam{
+			Type: "function",
+			Function: openai.FunctionDefinitionParam{
+				Name:        tool.Name,
+				Description: openai.String(tool.Description),
+				Parameters:  openai.FunctionParameters(params),
+			},
+		})
+	}
+
 	for _, msg := range r.Messages {
 		parts := make([]openai.ChatCompletionContentPartUnionParam, 0, len(msg.Parts))
 
@@ -126,6 +144,18 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 					}),
 				},
 			}
+
+		case llmadapter.RoleTool:
+			content.OfTool = &openai.ChatCompletionToolMessageParam{
+				ToolCallID: msg.Tool.Id,
+				Content: openai.ChatCompletionToolMessageParamContentUnion{
+					OfArrayOfContentParts: lo.Map(parts, func(p openai.ChatCompletionContentPartUnionParam, _ int) openai.ChatCompletionContentPartTextParam {
+						return openai.ChatCompletionContentPartTextParam{
+							Text: *p.GetText(),
+						}
+					}),
+				},
+			}
 		}
 
 		if llm.SaveContext {
@@ -147,11 +177,31 @@ func (p *OpenAi) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapter
 	}
 
 	for idx, candidate := range response.Choices {
+		toolCalls := make([]llmadapter.ResponseToolCall, len(candidate.Message.ToolCalls))
+
+		for idx, toolCall := range candidate.Message.ToolCalls {
+			toolCalls[idx] = llmadapter.ResponseToolCall{
+				Id:         toolCall.ID,
+				Name:       toolCall.Function.Name,
+				Parameters: []byte(toolCall.Function.Arguments),
+			}
+		}
+
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
-			Text: []string{candidate.Message.Content},
+			Text:      []string{candidate.Message.Content},
+			ToolCalls: toolCalls,
 			SelectCandidateFunc: func() {
 				if llm.SaveContext {
-					p.history.Save(openai.AssistantMessage(candidate.Message.Content))
+					msg := openai.ChatCompletionMessageParamUnion{
+						OfAssistant: &openai.ChatCompletionAssistantMessageParam{
+							ToolCalls: candidate.Message.ToParam().GetToolCalls(),
+							Content: openai.ChatCompletionAssistantMessageParamContentUnion{
+								OfString: openai.String(candidate.Message.Content),
+							},
+						},
+					}
+
+					p.history.Save(msg)
 				}
 			},
 		}

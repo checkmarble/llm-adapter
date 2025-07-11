@@ -2,6 +2,7 @@ package aistudio
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
@@ -68,6 +69,18 @@ func (p *AiStudio) ChatCompletions(ctx context.Context, llm *llmadapter.LlmAdapt
 		cfg.ResponseJsonSchema = r.ResponseSchema.Schema
 	}
 
+	cfg.Tools = lo.MapToSlice(r.Tools, func(fn string, t llmadapter.Tool) *genai.Tool {
+		return &genai.Tool{
+			FunctionDeclarations: []*genai.FunctionDeclaration{
+				{
+					Name:                 t.Name,
+					Description:          t.Description,
+					ParametersJsonSchema: t.Parameters,
+				},
+			},
+		}
+	})
+
 Messages:
 	for _, msg := range r.Messages {
 		parts := make([]*genai.Part, 0, len(msg.Parts))
@@ -88,6 +101,27 @@ Messages:
 			role = genai.RoleModel
 		case llmadapter.RoleUser:
 			role = genai.RoleUser
+		case llmadapter.RoleTool:
+			msg := &genai.Content{
+				Role: role,
+				Parts: []*genai.Part{
+					{
+						FunctionResponse: &genai.FunctionResponse{
+							ID:       msg.Tool.Id,
+							Name:     msg.Tool.Name,
+							Response: map[string]any{"output": parts[0]},
+						},
+					},
+				},
+			}
+
+			contents = append(contents, msg)
+
+			if llm.SaveContext {
+				p.history.Save(msg)
+			}
+
+			continue Messages
 		case llmadapter.RoleSystem:
 			cfg.SystemInstruction = &genai.Content{
 				Parts: parts,
@@ -124,10 +158,26 @@ Messages:
 	}
 
 	for idx, candidate := range response.Candidates {
+		toolCalls := make([]llmadapter.ResponseToolCall, len(response.FunctionCalls()))
+
+		for idx, toolCall := range response.FunctionCalls() {
+			params, err := json.Marshal(toolCall.Args)
+			if err != nil {
+				return nil, err
+			}
+
+			toolCalls[idx] = llmadapter.ResponseToolCall{
+				Id:         toolCall.ID,
+				Name:       toolCall.Name,
+				Parameters: params,
+			}
+		}
+
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
 			Text: lo.Map(candidate.Content.Parts, func(part *genai.Part, index int) string {
 				return part.Text
 			}),
+			ToolCalls: toolCalls,
 			SelectCandidateFunc: func() {
 				if llm.SaveContext {
 					p.history.Save(candidate.Content)

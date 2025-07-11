@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 
 	"github.com/invopop/jsonschema"
 )
@@ -17,6 +18,7 @@ const (
 	RoleSystem MessageRole = iota
 	RoleUser
 	RoleAi
+	RoleTool
 )
 
 const (
@@ -27,21 +29,29 @@ type InnerRequest struct {
 	Model          *string
 	Messages       []Message
 	ResponseSchema *Schema
+	Tools          map[string]Tool
 }
 
 type Message struct {
 	Type  MessageType
 	Role  MessageRole
 	Parts []io.Reader
+
+	Tool *ResponseToolCall
 }
 
 type TypedRequest[T any] struct {
 	InnerRequest
+
+	respondsTo *ResponseCandidate
+	err        error
 }
 
 func NewUntypedRequest() TypedRequest[string] {
 	return TypedRequest[string]{
-		InnerRequest: InnerRequest{},
+		InnerRequest: InnerRequest{
+			Tools: make(map[string]Tool),
+		},
 	}
 }
 
@@ -62,12 +72,28 @@ func NewRequest[T any]() TypedRequest[T] {
 }
 
 func (r TypedRequest[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedResponse[T], error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+
 	resp, err := llm.ChatCompletion(ctx, r.InnerRequest)
 	if err != nil {
 		return nil, err
 	}
 
 	return &TypedResponse[T]{*resp}, nil
+}
+
+func (r TypedRequest[T]) FromCandidate(resp Response, candidate int) TypedRequest[T] {
+	if candidate > len(resp.Candidates)-1 {
+		r.err = errors.Join(r.err, errors.New("selected candidate does not exist"))
+		return r
+	}
+
+	r.respondsTo = &resp.Candidates[candidate]
+	resp.Candidates[candidate].SelectCandidateFunc()
+
+	return r
 }
 
 func (r TypedRequest[T]) WithModel(model string) TypedRequest[T] {
@@ -96,8 +122,48 @@ func (r TypedRequest[T]) WithText(role MessageRole, parts ...io.Reader) TypedReq
 	return r
 }
 
-func (r TypedRequest[T]) WithResponseSchema(schema Schema) TypedRequest[T] {
-	r.ResponseSchema = &schema
+func (r TypedRequest[T]) WithTool(tool *Tool) TypedRequest[T] {
+	r.Tools[tool.Name] = *tool
+
+	return r
+}
+
+func (r TypedRequest[T]) withToolResponse(tool ResponseToolCall, parts string) TypedRequest[T] {
+	r.Messages = append(r.Messages, Message{
+		Type:  TypeText,
+		Role:  RoleTool,
+		Parts: []io.Reader{strings.NewReader(parts)},
+		Tool:  &tool,
+	})
+
+	return r
+}
+
+func (r TypedRequest[T]) WithToolExecution(tools ...*Tool) TypedRequest[T] {
+	if r.respondsTo == nil {
+		r.err = errors.Join(r.err, errors.New("cannot execute tool without selecting a response candidate, call FromCandidate() first"))
+		return r
+	}
+	for _, tool := range tools {
+		if tool == nil {
+			r.err = errors.Join(r.err, errors.New("unknown tool"))
+			return r
+		}
+
+		r = r.WithTool(tool)
+	}
+
+	for _, toolCall := range r.respondsTo.ToolCalls {
+		tool := r.Tools[toolCall.Name]
+
+		resp, err := tool.Call(toolCall.Parameters)
+		if err != nil {
+			r.err = errors.Join(err)
+			return r
+		}
+
+		r = r.withToolResponse(toolCall, resp)
+	}
 
 	return r
 }

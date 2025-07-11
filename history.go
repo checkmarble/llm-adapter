@@ -2,6 +2,7 @@ package llmadapter
 
 type History[T any] struct {
 	history []T
+	len     int
 }
 
 func (h *History[T]) Save(message T) {
@@ -13,5 +14,5 @@ func (h *History[T]) Load() []T {
 }
 
 func (h *History[T]) Clear() {
-	clear(h.history)
+	h.history = []T{}
 }
