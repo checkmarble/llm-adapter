@@ -103,7 +103,7 @@ func (p *AiStudio) adaptRequest(llm llmadapter.Adapter, requester llmadapter.Llm
 		cfg.ResponseJsonSchema = r.ResponseSchema.Schema
 	}
 
-	cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(fn string, t llmadapter.Tool) *genai.Tool {
+	cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(_ string, t llmadapter.Tool) *genai.Tool {
 		return &genai.Tool{
 			FunctionDeclarations: []*genai.FunctionDeclaration{
 				{
