@@ -109,15 +109,9 @@ func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedResponse[T],
 		return nil, errors.New("no provider was configured")
 	}
 
-	provider := llm.defaultProvider
-
-	if r.provider != nil {
-		p, ok := llm.providers[*r.provider]
-		if !ok {
-			return nil, errors.Newf("unknown provider '%s'", *r.provider)
-		}
-
-		provider = p
+	provider, err := llm.GetProvider(r.provider)
+	if err != nil {
+		return nil, err
 	}
 
 	resp, err := provider.ChatCompletion(ctx, llm, r)

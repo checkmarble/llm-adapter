@@ -146,9 +146,13 @@ Messages:
 
 			continue Messages
 		case llmadapter.RoleSystem:
-			cfg.SystemInstruction = &genai.Content{
-				Parts: parts,
+			if cfg.SystemInstruction == nil {
+				cfg.SystemInstruction = &genai.Content{
+					Parts: make([]*genai.Part, 0),
+				}
 			}
+
+			cfg.SystemInstruction.Parts = append(cfg.SystemInstruction.Parts, parts...)
 
 			if llm.SaveContext() {
 				p.history.Save(cfg.SystemInstruction)

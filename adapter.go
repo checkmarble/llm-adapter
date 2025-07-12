@@ -60,3 +60,18 @@ func (llm *LlmAdapter) ResetContext(providers ...string) {
 		}
 	}
 }
+
+func (llm *LlmAdapter) GetProvider(requestProvider *string) (Llm, error) {
+	provider := llm.defaultProvider
+
+	if requestProvider != nil {
+		p, ok := llm.providers[*requestProvider]
+		if !ok {
+			return nil, errors.Newf("unknown provider '%s'", *requestProvider)
+		}
+
+		provider = p
+	}
+
+	return provider, nil
+}
