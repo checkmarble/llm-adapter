@@ -49,6 +49,20 @@ func (p *OpenAi) ResetContext() {
 }
 
 func (p *OpenAi) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
+	cfg, err := p.adaptRequest(llm, requester)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not adapt request")
+	}
+
+	response, err := p.client.Chat.Completions.New(ctx, *cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "LLM provider failed to generate content")
+	}
+
+	return p.adaptResponse(llm, response)
+}
+
+func (p *OpenAi) adaptRequest(llm llmadapter.Adapter, requester llmadapter.LlmRequester) (*openai.ChatCompletionNewParams, error) {
 	r := requester.ToRequest()
 	contents := make([]openai.ChatCompletionMessageParamUnion, 0, len(r.Messages))
 
@@ -176,11 +190,10 @@ func (p *OpenAi) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, req
 		cfg.Messages = append(cfg.Messages, content)
 	}
 
-	response, err := p.client.Chat.Completions.New(ctx, cfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "LLM provider failed to generate content")
-	}
+	return &cfg, nil
+}
 
+func (p *OpenAi) adaptResponse(llm llmadapter.Adapter, response *openai.ChatCompletion) (*llmadapter.Response, error) {
 	resp := llmadapter.Response{
 		Model:      response.Model,
 		Candidates: make([]llmadapter.ResponseCandidate, len(response.Choices)),

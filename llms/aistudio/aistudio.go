@@ -64,16 +64,30 @@ func (p *AiStudio) ResetContext() {
 }
 
 func (p *AiStudio) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
+	model, ok := lo.Coalesce(requester.ToRequest().Model, p.model, lo.ToPtr(llm.DefaultModel()))
+	if !ok {
+		return nil, errors.New("no model was configured")
+	}
+
+	contents, cfg, err := p.adaptRequest(llm, requester)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not adapt request")
+	}
+
+	response, err := p.client.Models.GenerateContent(ctx, *model, contents, cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "LLM provider failed to generate content")
+	}
+
+	return p.adaptResponse(llm, response)
+}
+
+func (p *AiStudio) adaptRequest(llm llmadapter.Adapter, requester llmadapter.LlmRequester) ([]*genai.Content, *genai.GenerateContentConfig, error) {
 	r := requester.ToRequest()
 	contents := make([]*genai.Content, 0, len(r.Messages))
 
 	if llm.SaveContext() {
 		contents = append(contents, p.history.Load()...)
-	}
-
-	model, ok := lo.Coalesce(r.Model, p.model, lo.ToPtr(llm.DefaultModel()))
-	if !ok {
-		return nil, errors.New("no model was configured")
 	}
 
 	cfg := genai.GenerateContentConfig{}
@@ -108,7 +122,7 @@ Messages:
 		for _, part := range msg.Parts {
 			buf, err := io.ReadAll(part)
 			if err != nil {
-				return nil, errors.Wrap(err, "could not read content part")
+				return nil, nil, errors.Wrap(err, "could not read content part")
 			}
 
 			switch msg.Type {
@@ -173,11 +187,10 @@ Messages:
 		contents = append(contents, content)
 	}
 
-	response, err := p.client.Models.GenerateContent(ctx, *model, contents, &cfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "LLM provider failed to generate content")
-	}
+	return contents, &cfg, nil
+}
 
+func (p *AiStudio) adaptResponse(llm llmadapter.Adapter, response *genai.GenerateContentResponse) (*llmadapter.Response, error) {
 	resp := llmadapter.Response{
 		Model:      response.ModelVersion,
 		Candidates: make([]llmadapter.ResponseCandidate, len(response.Candidates)),
