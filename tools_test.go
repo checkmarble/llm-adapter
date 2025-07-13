@@ -121,3 +121,35 @@ func TestToolError(t *testing.T) {
 	assert.ErrorContains(t, req.err, "something went wrong")
 	assert.Equal(t, 10, called)
 }
+
+func TestToolWrongArgumentType(t *testing.T) {
+	type Args struct {
+		Integer int `json:"integer"`
+	}
+
+	called := 0
+
+	tool := NewTool[Args]("name", "", Function(func(wrongargs float64) (string, error) {
+		return "called", nil
+	}))
+
+	resp := TypedResponse[struct{}]{
+		Response: Response{
+			Candidates: []ResponseCandidate{{
+				ToolCalls: []ResponseToolCall{
+					{
+						Id:         "id",
+						Name:       "name",
+						Parameters: []byte(`{"integer": 10}`),
+					},
+				},
+				SelectCandidate: func() {},
+			}},
+		},
+	}
+
+	req := NewUntypedRequest().FromCandidate(resp, 0).WithToolExecution(tool)
+
+	assert.ErrorContains(t, req.err, "tool 'name' should take an argument of type Args, not float64")
+	assert.Equal(t, 0, called)
+}

@@ -42,7 +42,7 @@ func TestGoogleAiRequest(t *testing.T) {
 	}
 
 	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendGeminiAPI))
-	llm, _ := llmadapter.NewLlmAdapter(llmadapter.WithDefaultProvider(provider), llmadapter.WithApiKey("apikey"))
+	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithApiKey("apikey"))
 
 	req := llmadapter.NewRequest[Output]().
 		WithModel("themodel").

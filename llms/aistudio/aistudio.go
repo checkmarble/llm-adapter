@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"reflect"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
+	"github.com/checkmarble/marble-llm-adapter/internal"
+	"github.com/checkmarble/marble-llm-adapter/internal/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
 	"google.golang.org/genai"
@@ -21,6 +24,10 @@ type AiStudio struct {
 	model    *string
 }
 
+func (AiStudio) RequestOptionsType() reflect.Type {
+	return reflect.TypeFor[RequestOptions]()
+}
+
 func New(opts ...opt) (*AiStudio, error) {
 	llm := AiStudio{
 		backend: genai.BackendGeminiAPI,
@@ -33,7 +40,7 @@ func New(opts ...opt) (*AiStudio, error) {
 	return &llm, nil
 }
 
-func (p *AiStudio) Init(adapter llmadapter.Adapter) error {
+func (p *AiStudio) Init(adapter internal.Adapter) error {
 	cfg := genai.ClientConfig{
 		Backend: genai.BackendGeminiAPI,
 	}
@@ -63,13 +70,15 @@ func (p *AiStudio) ResetContext() {
 	p.history.Clear()
 }
 
-func (p *AiStudio) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
+func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
 	model, ok := lo.Coalesce(requester.ToRequest().Model, p.model, lo.ToPtr(llm.DefaultModel()))
 	if !ok {
 		return nil, errors.New("no model was configured")
 	}
 
-	contents, cfg, err := p.adaptRequest(llm, requester)
+	opts := utils.CastProviderOptions[RequestOptions](requester.ProviderRequestOptions(p))
+
+	contents, cfg, err := p.adaptRequest(llm, requester, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not adapt request")
 	}
@@ -82,7 +91,7 @@ func (p *AiStudio) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, r
 	return p.adaptResponse(llm, response)
 }
 
-func (p *AiStudio) adaptRequest(llm llmadapter.Adapter, requester llmadapter.LlmRequester) ([]*genai.Content, *genai.GenerateContentConfig, error) {
+func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.LlmRequester, opts RequestOptions) ([]*genai.Content, *genai.GenerateContentConfig, error) {
 	r := requester.ToRequest()
 	contents := make([]*genai.Content, 0, len(r.Messages))
 
@@ -90,9 +99,15 @@ func (p *AiStudio) adaptRequest(llm llmadapter.Adapter, requester llmadapter.Llm
 		contents = append(contents, p.history.Load()...)
 	}
 
-	cfg := genai.GenerateContentConfig{}
+	cfg := genai.GenerateContentConfig{
+		CandidateCount:  int32(lo.FromPtr(r.MaxCandidates)),
+		MaxOutputTokens: int32(lo.FromPtr(r.MaxTokens)),
+		Temperature:     utils.MaybeF64ToF32(r.Temperature),
+		TopP:            utils.MaybeF64ToF32(r.TopP),
+		TopK:            utils.MaybeF64ToF32(opts.TopK),
+	}
 
-	if r.Grounding {
+	if lo.FromPtr(opts.GoogleSearch) {
 		cfg.Tools = []*genai.Tool{{
 			GoogleSearch: &genai.GoogleSearch{},
 		}}
@@ -190,7 +205,7 @@ Messages:
 	return contents, &cfg, nil
 }
 
-func (p *AiStudio) adaptResponse(llm llmadapter.Adapter, response *genai.GenerateContentResponse) (*llmadapter.Response, error) {
+func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateContentResponse) (*llmadapter.Response, error) {
 	resp := llmadapter.Response{
 		Model:      response.ModelVersion,
 		Candidates: make([]llmadapter.ResponseCandidate, len(response.Candidates)),
@@ -208,7 +223,7 @@ func (p *AiStudio) adaptResponse(llm llmadapter.Adapter, response *genai.Generat
 				Searches: candidate.GroundingMetadata.WebSearchQueries,
 				Sources: lo.Map(candidate.GroundingMetadata.GroundingChunks, func(c *genai.GroundingChunk, _ int) llmadapter.ResponseGroudingSource {
 					return llmadapter.ResponseGroudingSource{
-						Domain: c.Web.Domain,
+						Domain: lo.CoalesceOrEmpty(c.Web.Domain, c.Web.Title),
 						Url:    c.Web.URI,
 					}
 				}),

@@ -18,7 +18,7 @@ func main() {
 	gemini, _ := aistudio.New(aistudio.WithBackend(genai.BackendGeminiAPI))
 	ollama, _ := openai.New(openai.WithBaseUrl("http://localhost:11434/v1"))
 
-	llm, _ := llmadapter.NewLlmAdapter(
+	llm, _ := llmadapter.New(
 		llmadapter.WithProvider("vertex", gemini),
 		llmadapter.WithProvider("ollama", ollama),
 		llmadapter.WithDefaultModel("gemini-2.5-flash"),
@@ -26,7 +26,7 @@ func main() {
 		llmadapter.WithSaveContext(),
 	)
 
-	ollamaResponse, err := llmadapter.NewUntypedRequest().WithProvider("ollama").WithModel("llama3.1:latest").WithText(llmadapter.RoleUser, "How are you?").Do(ctx, llm)
+	ollamaResponse, err := llmadapter.NewUntypedRequest().WithProvider("ollama").WithModel("gemma3n:e4b").WithText(llmadapter.RoleUser, "How are you?").Do(ctx, llm)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -2,18 +2,16 @@ package llmadapter
 
 import (
 	"context"
+	"reflect"
+
+	"github.com/checkmarble/marble-llm-adapter/internal"
 )
 
 type Llm interface {
-	Init(llm Adapter) error
+	Init(llm internal.Adapter) error
 	ResetContext()
-	ChatCompletion(context.Context, Adapter, LlmRequester) (*Response, error)
-}
-
-type Adapter interface {
-	DefaultModel() string
-	ApiKey() string
-	SaveContext() bool
+	ChatCompletion(context.Context, internal.Adapter, LlmRequester) (*Response, error)
+	RequestOptionsType() reflect.Type
 }
 
 func (llm LlmAdapter) DefaultModel() string {
@@ -30,8 +28,19 @@ func (llm LlmAdapter) SaveContext() bool {
 
 type LlmRequester interface {
 	ToRequest() innerRequest
+	ProviderRequestOptions(provider Llm) internal.ProviderRequestOptions
 }
 
 func (r Request[T]) ToRequest() innerRequest {
 	return r.innerRequest
+}
+
+func (r Request[T]) ProviderRequestOptions(provider Llm) internal.ProviderRequestOptions {
+	var providerOpts internal.ProviderRequestOptions
+
+	if opts, ok := r.ProviderOptions[provider.RequestOptionsType()]; ok {
+		providerOpts = opts
+	}
+
+	return providerOpts
 }

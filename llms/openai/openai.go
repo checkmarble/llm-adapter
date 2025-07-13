@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"reflect"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
+	"github.com/checkmarble/marble-llm-adapter/internal"
 	"github.com/cockroachdb/errors"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
@@ -20,6 +22,10 @@ type OpenAi struct {
 	model   *string
 }
 
+func (OpenAi) RequestOptionsType() reflect.Type {
+	return nil
+}
+
 func New(opts ...opt) (*OpenAi, error) {
 	llm := OpenAi{}
 
@@ -30,7 +36,7 @@ func New(opts ...opt) (*OpenAi, error) {
 	return &llm, nil
 }
 
-func (p *OpenAi) Init(llm llmadapter.Adapter) error {
+func (p *OpenAi) Init(llm internal.Adapter) error {
 	opts := []option.RequestOption{
 		option.WithAPIKey(llm.ApiKey()),
 	}
@@ -48,7 +54,7 @@ func (p *OpenAi) ResetContext() {
 	p.history.Clear()
 }
 
-func (p *OpenAi) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
+func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
 	cfg, err := p.adaptRequest(llm, requester)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not adapt request")
@@ -62,7 +68,7 @@ func (p *OpenAi) ChatCompletion(ctx context.Context, llm llmadapter.Adapter, req
 	return p.adaptResponse(llm, response)
 }
 
-func (p *OpenAi) adaptRequest(llm llmadapter.Adapter, requester llmadapter.LlmRequester) (*openai.ChatCompletionNewParams, error) {
+func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.LlmRequester) (*openai.ChatCompletionNewParams, error) {
 	r := requester.ToRequest()
 	contents := make([]openai.ChatCompletionMessageParamUnion, 0, len(r.Messages))
 
@@ -78,6 +84,19 @@ func (p *OpenAi) adaptRequest(llm llmadapter.Adapter, requester llmadapter.LlmRe
 	cfg := openai.ChatCompletionNewParams{
 		Model:    *model,
 		Messages: contents,
+	}
+
+	if r.MaxCandidates != nil {
+		cfg.N = openai.Int(int64(*r.MaxCandidates))
+	}
+	if r.MaxTokens != nil {
+		cfg.MaxTokens = openai.Int(int64(*r.MaxTokens))
+	}
+	if r.Temperature != nil {
+		cfg.Temperature = openai.Float(*r.Temperature)
+	}
+	if r.TopP != nil {
+		cfg.TopP = openai.Float(*r.TopP)
 	}
 
 	if r.ResponseSchema != nil {
@@ -193,7 +212,7 @@ func (p *OpenAi) adaptRequest(llm llmadapter.Adapter, requester llmadapter.LlmRe
 	return &cfg, nil
 }
 
-func (p *OpenAi) adaptResponse(llm llmadapter.Adapter, response *openai.ChatCompletion) (*llmadapter.Response, error) {
+func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatCompletion) (*llmadapter.Response, error) {
 	resp := llmadapter.Response{
 		Model:      response.Model,
 		Candidates: make([]llmadapter.ResponseCandidate, len(response.Choices)),

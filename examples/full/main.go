@@ -25,7 +25,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	llm, err := llmadapter.NewLlmAdapter(
+	llm, err := llmadapter.New(
 		llmadapter.WithProvider("vertex", provider),
 		llmadapter.WithDefaultModel("gemini-2.5-pro"),
 		llmadapter.WithApiKey(os.Getenv("LLM_API_KEY")),

@@ -19,16 +19,16 @@ type LlmAdapter struct {
 	saveContext  bool
 }
 
-// NewLlmAdapter creates a new LlmAdapter with the given options.
+// New creates a new LlmAdapter with the given options.
 // It initializes the specified LLM provider and returns a configured adapter.
 //
 // Example usage:
 //
-//	adapter, err := llmadapter.NewLlmAdapter(
+//	adapter, err := llmadapter.New(
 //		llmadapter.WithOpenAI("your-api-key"),
 //		llmadapter.WithDefaultModel("gpt-4"),
 //	)
-func NewLlmAdapter(opts ...llmOption) (*LlmAdapter, error) {
+func New(opts ...llmOption) (*LlmAdapter, error) {
 	llm := LlmAdapter{
 		providers: make(map[string]Llm),
 	}

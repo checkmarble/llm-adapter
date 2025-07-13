@@ -3,8 +3,10 @@ package llmadapter
 import (
 	"context"
 	"io"
+	"reflect"
 	"strings"
 
+	"github.com/checkmarble/marble-llm-adapter/internal"
 	"github.com/cockroachdb/errors"
 	"github.com/invopop/jsonschema"
 	"github.com/samber/lo"
@@ -39,9 +41,15 @@ type Message struct {
 type innerRequest struct {
 	Model          *string
 	Messages       []Message
-	Grounding      bool
 	ResponseSchema *schema
 	Tools          map[string]Tool
+
+	MaxTokens     *int
+	MaxCandidates *int
+	Temperature   *float64
+	TopP          *float64
+
+	ProviderOptions map[reflect.Type]internal.ProviderRequestOptions
 }
 
 // Request represent a request to be sent the an LLM provider, in the
@@ -66,7 +74,8 @@ type Request[T any] struct {
 func NewUntypedRequest() Request[string] {
 	return Request[string]{
 		innerRequest: innerRequest{
-			Tools: make(map[string]Tool),
+			Tools:           make(map[string]Tool),
+			ProviderOptions: make(map[reflect.Type]internal.ProviderRequestOptions),
 		},
 	}
 }
@@ -86,7 +95,8 @@ func NewUntypedRequest() Request[string] {
 //		Do(ctx, llm)
 func NewRequest[T any]() Request[T] {
 	r := innerRequest{
-		Tools: make(map[string]Tool),
+		Tools:           make(map[string]Tool),
+		ProviderOptions: make(map[reflect.Type]internal.ProviderRequestOptions),
 	}
 
 	switch any(*new(T)).(type) {
@@ -210,16 +220,6 @@ func (r Request[T]) WithTextReader(role MessageRole, parts ...io.Reader) Request
 	return r
 }
 
-// WithGrounding turns on public grounding for a specific request.
-//
-// It will only have an effect on provider supporting public methods to ground
-// requests.
-func (r Request[T]) WithGrounding() Request[T] {
-	r.Grounding = true
-
-	return r
-}
-
 // WithTools adds tool definitions to the request.
 //
 // See `tools.go` for more information about how to define tools.
@@ -275,6 +275,36 @@ func (r Request[T]) WithToolExecution(tools ...Tool) Request[T] {
 
 		r = r.withToolResponse(toolCall, resp)
 	}
+
+	return r
+}
+
+func (r Request[T]) WithProviderOptions(opts internal.ProviderRequestOptions) Request[T] {
+	r.ProviderOptions[reflect.TypeOf(opts)] = opts
+
+	return r
+}
+
+func (r Request[T]) WithMaxTokens(tokens int) Request[T] {
+	r.MaxTokens = &tokens
+
+	return r
+}
+
+func (r Request[T]) WithMaxCandidates(candidates int) Request[T] {
+	r.MaxCandidates = &candidates
+
+	return r
+}
+
+func (r Request[T]) WithTemperature(temp float64) Request[T] {
+	r.Temperature = &temp
+
+	return r
+}
+
+func (r Request[T]) WithTopP(topp float64) Request[T] {
+	r.TopP = &topp
 
 	return r
 }

@@ -6,18 +6,19 @@ import (
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
 	"github.com/invopop/jsonschema"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRequestAdapter(t *testing.T) {
-	llm, _ := llmadapter.NewLlmAdapter()
+	llm, _ := llmadapter.New()
 	p, _ := New()
 
 	t.Run("with model", func(t *testing.T) {
 		req := llmadapter.NewUntypedRequest().
 			WithModel("themodel")
 
-		contents, cfg, err := p.adaptRequest(llm, req)
+		contents, cfg, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
 
 		assert.Nil(t, err)
 		assert.Nil(t, cfg.SystemInstruction)
@@ -30,7 +31,7 @@ func TestRequestAdapter(t *testing.T) {
 			WithInstruction("system prompt", "system prompt 2").
 			WithInstructionReader(strings.NewReader("system prompt 3"))
 
-		contents, cfg, err := p.adaptRequest(llm, req)
+		contents, cfg, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
 
 		assert.Nil(t, err)
 		assert.NotNil(t, cfg.SystemInstruction)
@@ -46,7 +47,7 @@ func TestRequestAdapter(t *testing.T) {
 			WithText(llmadapter.RoleUser, "user prompt", "user prompt 2").
 			WithTextReader(llmadapter.RoleUser, strings.NewReader("user prompt 3"))
 
-		contents, _, err := p.adaptRequest(llm, req)
+		contents, _, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
 
 		assert.Nil(t, err)
 		assert.Len(t, contents, 2)
@@ -67,15 +68,15 @@ func TestRequestAdapter(t *testing.T) {
 
 		req := llmadapter.NewUntypedRequest().
 			WithTools(
-				llmadapter.NewTool[Args1]("toolname", "tooldesc", llmadapter.Function(func(a string) (string, error) {
+				llmadapter.NewTool[Args1]("toolname", "tooldesc", llmadapter.Function(func(a Args1) (string, error) {
 					return "", nil
 				})),
-				llmadapter.NewTool[Args2]("toolname 2", "tooldesc 2", llmadapter.Function(func(a string) (string, error) {
+				llmadapter.NewTool[Args2]("toolname 2", "tooldesc 2", llmadapter.Function(func(a Args2) (string, error) {
 					return "", nil
 				})),
 			)
 
-		_, cfg, err := p.adaptRequest(llm, req)
+		_, cfg, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
 
 		assert.Nil(t, err)
 		assert.Len(t, cfg.Tools, 2)
@@ -119,7 +120,7 @@ func TestRequestAdapter(t *testing.T) {
 
 		req := llmadapter.NewRequest[Format]()
 
-		_, cfg, err := p.adaptRequest(llm, req)
+		_, cfg, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
 
 		assert.Nil(t, err)
 		assert.NotNil(t, cfg.ResponseJsonSchema)
@@ -134,5 +135,45 @@ func TestRequestAdapter(t *testing.T) {
 		assert.Equal(t, "Text description", schema.Properties.Value("text").Description)
 		assert.Equal(t, "integer", schema.Properties.Value("number").Type)
 		assert.Equal(t, "Number description", schema.Properties.Value("number").Description)
+	})
+
+	t.Run("with request options", func(t *testing.T) {
+		req := llmadapter.NewUntypedRequest().
+			WithMaxCandidates(10).
+			WithMaxTokens(42).
+			WithTemperature(0.1).
+			WithTopP(0.1)
+
+		_, cfg, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
+
+		assert.Nil(t, err)
+		assert.EqualValues(t, 10, cfg.CandidateCount)
+		assert.EqualValues(t, 42, cfg.MaxOutputTokens)
+		assert.Equal(t, float32(0.1), *cfg.Temperature)
+		assert.Equal(t, float32(0.1), *cfg.TopP)
+	})
+
+	t.Run("with provider options", func(t *testing.T) {
+		req := llmadapter.NewUntypedRequest()
+		opts := RequestOptions{
+			GoogleSearch: lo.ToPtr(true),
+			TopK:         lo.ToPtr(0.2),
+		}
+
+		_, cfg, err := p.adaptRequest(llm, req, opts)
+
+		assert.Nil(t, err)
+
+		matchedTools := 0
+
+		for _, tool := range cfg.Tools {
+			matchedTools += 1
+
+			assert.NotNil(t, tool.GoogleSearch)
+		}
+
+		assert.Equal(t, 1, matchedTools)
+		assert.NotNil(t, cfg.TopK)
+		assert.Equal(t, float32(0.2), *cfg.TopK)
 	})
 }

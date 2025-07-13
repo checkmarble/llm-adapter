@@ -7,14 +7,15 @@ import (
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
 	"github.com/checkmarble/marble-llm-adapter/llms/aistudio"
+	"github.com/samber/lo"
 	"google.golang.org/genai"
 )
 
 func main() {
 	ctx := context.Background()
 
-	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendVertexAI), aistudio.WithProject(os.Getenv("GOOGLE_CLOUD_PROJECT")), aistudio.WithLocation("europe-west1"))
-	llm, _ := llmadapter.NewLlmAdapter(
+	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendGeminiAPI))
+	llm, _ := llmadapter.New(
 		llmadapter.WithProvider("vertex", provider),
 		llmadapter.WithDefaultModel("gemini-2.5-flash"),
 		llmadapter.WithApiKey(os.Getenv("LLM_API_KEY")),
@@ -22,7 +23,9 @@ func main() {
 	)
 
 	resp, _ := llmadapter.NewUntypedRequest().
-		WithGrounding().
+		WithProviderOptions(aistudio.RequestOptions{
+			GoogleSearch: lo.ToPtr(true),
+		}).
 		WithText(llmadapter.RoleUser, "When was the Madleen ship stopped when trying to reach Gaza?").
 		Do(ctx, llm)
 

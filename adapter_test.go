@@ -8,12 +8,12 @@ import (
 )
 
 func TestOptions(t *testing.T) {
-	llm, err := NewLlmAdapter(WithApiKey("apikey"))
+	llm, err := New(WithApiKey("apikey"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, "apikey", llm.ApiKey())
 
-	llm, err = NewLlmAdapter(WithDefaultModel("themodel"))
+	llm, err = New(WithDefaultModel("themodel"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, "themodel", llm.DefaultModel())
@@ -22,7 +22,7 @@ func TestOptions(t *testing.T) {
 	expectedProvider1, _ := NewMockProvider()
 	expectedProvider2, _ := NewMockProvider()
 
-	llm, err = NewLlmAdapter(
+	llm, err = New(
 		WithDefaultProvider(expectedDefaultProvider),
 		WithProvider("provider1", expectedProvider1),
 		WithProvider("provider2", expectedProvider2),

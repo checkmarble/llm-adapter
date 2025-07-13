@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/cockroachdb/errors"
 	"github.com/invopop/jsonschema"
 )
 
@@ -46,13 +47,22 @@ func NewTool[T any](name, description string, fn functionBody) Tool {
 }
 
 func (t Tool) call(paramsJson []byte) (string, error) {
-	params := reflect.New(reflect.TypeOf(t.input)).Interface()
+	argType := reflect.TypeOf(t.input)
+	params := reflect.New(argType).Interface()
 
 	if err := json.Unmarshal(paramsJson, &params); err != nil {
 		return "", err
 	}
 
 	fn := reflect.ValueOf(t.function.inner)
+
+	if fn.Type().NumIn() != 1 {
+		return "", errors.Newf("tool '%s' should take one argument, not %d", t.Name, fn.Type().NumIn())
+	}
+	if fn.Type().In(0) != argType {
+		return "", errors.Newf("tool '%s' should take an argument of type %s, not %s", t.Name, argType.Name(), fn.Type().In(0).Name())
+	}
+
 	args := []reflect.Value{reflect.ValueOf(params).Elem()}
 	rets := fn.Call(args)
 
