@@ -12,9 +12,9 @@ type (
 )
 
 const (
-	FinishReasonStop      FinishReason = "stop"
-	FinishReasonMaxTokens              = "max_tokens"
-	FinishReasonContentFilter
+	FinishReasonStop          FinishReason = "stop"
+	FinishReasonMaxTokens                  = "max_tokens"
+	FinishReasonContentFilter              = "content_filter"
 )
 
 // Candidater represents a type that can have several candidates.
@@ -23,7 +23,7 @@ type Candidater interface {
 	Candidate(int) (*ResponseCandidate, error)
 }
 
-// InnerResponse is a response from an LLM provider.
+// InnerResponse is a response from a provider.
 type InnerResponse struct {
 	Id         string
 	Model      string
@@ -31,12 +31,14 @@ type InnerResponse struct {
 	Created    time.Time
 }
 
-// ResponseCandidate represent a response from an LLM provider.
+// ResponseCandidate represent a candidate response from a  provider.
 type ResponseCandidate struct {
-	Text            string
-	FinishReason    FinishReason
-	ToolCalls       []ResponseToolCall
-	Grounding       *ResponseGrounding
+	Text         string
+	FinishReason FinishReason
+	ToolCalls    []ResponseToolCall
+	Grounding    *ResponseGrounding
+	// SelectCandidate is a callback that is called when a candidate is
+	// "selected" (when the conversation will continue from it).
 	SelectCandidate func()
 }
 
@@ -51,13 +53,17 @@ type ResponseGroudingSource struct {
 	Url    string
 }
 
-// ResponseToolCall is a request from an LLM provider to execute a tool.
+// ResponseToolCall is a request from a provider to execute a tool.
 type ResponseToolCall struct {
 	Id         string
 	Name       string
 	Parameters []byte
 }
 
+// Response[T] is a wrapper around a provider response.
+//
+// It wraps it so it can be generic without the provider's response to also be,
+// and provide typed methods to unmarshal the response, if necessary.
 type Response[T any] struct {
 	InnerResponse
 }
@@ -74,6 +80,10 @@ func (r Response[T]) Candidate(idx int) (*ResponseCandidate, error) {
 	return &r.Candidates[idx], nil
 }
 
+// Get will return the deserialized output for a candidate.
+//
+// It will parse the reponse and deserialize it to the requested type, or return
+// an error if it cannot.
 func (r Response[T]) Get(idx int) (T, error) {
 	if idx > len(r.Candidates)-1 {
 		return *new(T), errors.Newf("candidate %d does not exist (%d candidates)", idx, len(r.Candidates))

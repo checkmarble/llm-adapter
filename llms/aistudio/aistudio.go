@@ -8,7 +8,6 @@ import (
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
 	"github.com/checkmarble/marble-llm-adapter/internal"
-	"github.com/checkmarble/marble-llm-adapter/internal/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
 	"google.golang.org/genai"
@@ -77,7 +76,7 @@ func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, req
 		return nil, errors.New("no model was configured")
 	}
 
-	opts := utils.CastProviderOptions[RequestOptions](requester.ProviderRequestOptions(p))
+	opts := internal.CastProviderOptions[RequestOptions](requester.ProviderRequestOptions(p))
 
 	contents, cfg, err := p.adaptRequest(llm, requester, opts)
 	if err != nil {
@@ -103,9 +102,9 @@ func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.Reque
 	cfg := genai.GenerateContentConfig{
 		CandidateCount:  int32(lo.FromPtr(r.MaxCandidates)),
 		MaxOutputTokens: int32(lo.FromPtr(r.MaxTokens)),
-		Temperature:     utils.MaybeF64ToF32(r.Temperature),
-		TopP:            utils.MaybeF64ToF32(r.TopP),
-		TopK:            utils.MaybeF64ToF32(opts.TopK),
+		Temperature:     internal.MaybeF64ToF32(r.Temperature),
+		TopP:            internal.MaybeF64ToF32(r.TopP),
+		TopK:            internal.MaybeF64ToF32(opts.TopK),
 	}
 
 	if lo.FromPtr(opts.GoogleSearch) {
@@ -119,7 +118,7 @@ func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.Reque
 		cfg.ResponseJsonSchema = r.ResponseSchema
 	}
 
-	cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(_ string, t llmadapter.Tool) *genai.Tool {
+	cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(_ string, t internal.Tool) *genai.Tool {
 		return &genai.Tool{
 			FunctionDeclarations: []*genai.FunctionDeclaration{
 				{

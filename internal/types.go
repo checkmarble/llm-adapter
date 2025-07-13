@@ -1,11 +1,10 @@
-package utils
+package internal
 
 import (
-	"github.com/checkmarble/marble-llm-adapter/internal"
 	"github.com/samber/lo"
 )
 
-func CastProviderOptions[T internal.ProviderRequestOptions](opts internal.ProviderRequestOptions) T {
+func CastProviderOptions[T ProviderRequestOptions](opts ProviderRequestOptions) T {
 	if opts == nil {
 		return lo.FromPtr[T](nil)
 	}

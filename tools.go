@@ -1,34 +1,15 @@
 package llmadapter
 
 import (
-	"encoding/json"
-	"reflect"
-
-	"github.com/checkmarble/marble-llm-adapter/internal/utils"
-	"github.com/cockroachdb/errors"
-	"github.com/invopop/jsonschema"
+	"github.com/checkmarble/marble-llm-adapter/internal"
 )
-
-// Tool is a tool function definition.
-type Tool struct {
-	Name        string
-	Description string
-	Parameters  jsonschema.Schema
-
-	function functionBody
-	input    any
-}
-
-type functionBody struct {
-	inner any
-}
 
 // Function is a wrapper for the code executed in a tool.
 //
-// It is generic in I, which is a type containing the tool arguments. It
+// It is generic in A, which is a type containing the tool arguments. It
 // follows the same idioms as a response schema.
-func Function[I any](f func(I) (string, error)) functionBody {
-	return functionBody{any(f)}
+func Function[A any](f func(args A) (string, error)) internal.FunctionBody {
+	return internal.FunctionBody{Inner: any(f)}
 }
 
 // NewTool creates a new tool.
@@ -37,49 +18,6 @@ func Function[I any](f func(I) (string, error)) functionBody {
 // and description.
 //
 // The function body should be wrapped in `Function`.
-func NewTool[T any](name, description string, fn functionBody) Tool {
-	return Tool{
-		Name:        name,
-		Description: description,
-		Parameters:  utils.GenerateSchema[T](),
-		input:       *new(T),
-		function:    fn,
-	}
-}
-
-func (t Tool) call(paramsJson []byte) (string, error) {
-	argType := reflect.TypeOf(t.input)
-	params := reflect.New(argType).Interface()
-
-	if err := json.Unmarshal(paramsJson, &params); err != nil {
-		return "", err
-	}
-
-	fn := reflect.ValueOf(t.function.inner)
-
-	if fn.Type().NumIn() != 1 {
-		return "", errors.Newf("tool '%s' should take one argument, not %d", t.Name, fn.Type().NumIn())
-	}
-	if fn.Type().In(0) != argType {
-		return "", errors.Newf("tool '%s' should take an argument of type %s, not %s", t.Name, argType.Name(), fn.Type().In(0).Name())
-	}
-
-	args := []reflect.Value{reflect.ValueOf(params).Elem()}
-	rets := fn.Call(args)
-
-	if len(rets) != 2 {
-		panic("tool functions should return (string, error)")
-	}
-
-	if !rets[1].IsNil() {
-		return "", rets[1].Interface().(error)
-	}
-
-	output, ok := rets[0].Interface().(string)
-
-	if !ok {
-		panic("tool function should return (string, error)")
-	}
-
-	return output, nil
+func NewTool[A any](name, description string, fn internal.FunctionBody) internal.Tool {
+	return internal.NewTool[A](name, description, fn)
 }

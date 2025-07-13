@@ -14,24 +14,22 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const openaiResponse = `
-{
+const openaiResponse = `{
 	"id": "theid",
 	"model": "themodel",
 	"choices": [
-	    {
+		{
 			"index": 0,
 			"finish_reason": "stop",
 			"message": {
-		        "type": "message",
-		        "role": "assistant",
-		        "content": "{\"reply\":\"The JSON response from the provider.\"}"
+				"type": "message",
+				"role": "assistant",
+				"content": "{\"reply\":\"The JSON response from the provider.\"}"
 			}
-	    }
+		}
 	],
 	"created": 1752423600
-}
-`
+}`
 
 func TestOpenAiRequest(t *testing.T) {
 	defer gock.Off()

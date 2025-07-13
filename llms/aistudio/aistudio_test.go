@@ -15,24 +15,22 @@ import (
 	"google.golang.org/genai"
 )
 
-const aistudioResponse = `
-{
+const aistudioResponse = `{
 	"responseId": "theid",
 	"modelVersion": "themodel",
-    "candidates": [
-        {
-        	"finishReason": "STOP",
-            "content": {
-            	"role": "model",
-            	"parts": [
-             		{ "text": "{\"reply\":\"The JSON response from the provider.\"}" }
-                ]
-            }
-        }
-    ],
-    "createTime": "2025-07-13T16:20:00Z"
-}
-`
+	"candidates": [
+		{
+			"finishReason": "STOP",
+				"content": {
+				"role": "model",
+				"parts": [
+					{ "text": "{\"reply\":\"The JSON response from the provider.\"}" }
+				]
+			}
+		}
+	],
+	"createTime": "2025-07-13T16:20:00Z"
+}`
 
 func TestGoogleAiRequest(t *testing.T) {
 	defer gock.Off()

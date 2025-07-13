@@ -13,10 +13,23 @@ const (
 	defaultProvider = "__DEFAULT__"
 )
 
+// Llm defines the interface that all LLM providers must implement.
+// It provides a contract for initializing, managing context,
+// and performing chat completions with different language models.
 type Llm interface {
+	// Init initializes the LLM provider with the given adapter configuration.
+	// It is called once when the provider is added to the adapter.
 	Init(llm internal.Adapter) error
+	// ResetContext clears the conversation history for the specific LLM provider.
+	// This allows starting a new conversation without re-initializing the provider.
 	ResetContext()
+	// ChatCompletion sends a chat completion request to the LLM provider.
+	// It takes a context, the adapter's internal configuration, and a Requester
+	// to retrieve the request.
 	ChatCompletion(context.Context, internal.Adapter, Requester) (*InnerResponse, error)
+	// RequestOptionsType returns the reflect.Type of the provider-specific
+	// request options struct. This is used for type checking and reflection
+	// when processing custom request options.
 	RequestOptionsType() reflect.Type
 }
 
@@ -39,8 +52,9 @@ type LlmAdapter struct {
 // Example usage:
 //
 //	adapter, err := llmadapter.New(
-//		llmadapter.WithOpenAI("your-api-key"),
+//		llmadapter.WithDefaultProvider(provider),
 //		llmadapter.WithDefaultModel("gpt-4"),
+//		llmadapter.WithApiKey("...")
 //	)
 func New(opts ...llmOption) (*LlmAdapter, error) {
 	llm := LlmAdapter{
@@ -63,6 +77,8 @@ func New(opts ...llmOption) (*LlmAdapter, error) {
 // ResetContext clears the conversation history maintained by the adapter.
 // This is useful when you want to start a new conversation without creating a
 // new adapter instance. This also clears the systems instructions.
+// If called without arguments, will clear the history of the default provider,
+// otherwise, it accepts variadic provider names for which to clear the history.
 func (llm *LlmAdapter) ResetContext(providers ...string) {
 	if len(providers) == 0 {
 		llm.defaultProvider.ResetContext()
@@ -75,7 +91,15 @@ func (llm *LlmAdapter) ResetContext(providers ...string) {
 	}
 }
 
+// GetProvider retrieves an LLM provider based on the given provider name.
+// It accepts the provider requested in a specific request, which will override
+// the default provider. If the provider argument is nil, it will return the
+// configured default provider.
 func (llm *LlmAdapter) GetProvider(requestProvider *string) (Llm, error) {
+	if llm.defaultProvider == nil {
+		return nil, errors.New("no provider was configured")
+	}
+
 	provider := llm.defaultProvider
 
 	if requestProvider != nil {
@@ -90,6 +114,8 @@ func (llm *LlmAdapter) GetProvider(requestProvider *string) (Llm, error) {
 	return provider, nil
 }
 
+// LlmAdapter implementation of Adapter
+
 func (llm LlmAdapter) DefaultModel() string {
 	return llm.defaultModel
 }
@@ -98,9 +124,10 @@ func (llm LlmAdapter) ApiKey() string {
 	return llm.apiKey
 }
 
-func (llm LlmAdapter) SaveContext() bool {
-	return llm.saveContext
-}
 func (llm LlmAdapter) HttpClient() *http.Client {
 	return llm.httpClient
+}
+
+func (llm LlmAdapter) SaveContext() bool {
+	return llm.saveContext
 }
