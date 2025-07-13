@@ -54,7 +54,7 @@ func (p *OpenAi) ResetContext() {
 	p.history.Clear()
 }
 
-func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
+func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
 	cfg, err := p.adaptRequest(llm, requester)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not adapt request")
@@ -68,7 +68,7 @@ func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, reque
 	return p.adaptResponse(llm, response)
 }
 
-func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.LlmRequester) (*openai.ChatCompletionNewParams, error) {
+func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Requester) (*openai.ChatCompletionNewParams, error) {
 	r := requester.ToRequest()
 	contents := make([]openai.ChatCompletionMessageParamUnion, 0, len(r.Messages))
 
@@ -103,10 +103,8 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.LlmRequ
 		cfg.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
 			OfJSONSchema: &openai.ResponseFormatJSONSchemaParam{
 				JSONSchema: openai.ResponseFormatJSONSchemaJSONSchemaParam{
-					Name:        r.ResponseSchema.Name,
-					Description: openai.String(r.ResponseSchema.Description),
-					Schema:      r.ResponseSchema.Schema,
-					Strict:      openai.Bool(true),
+					Schema: r.ResponseSchema,
+					Strict: openai.Bool(true),
 				},
 			},
 		}
@@ -212,8 +210,8 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.LlmRequ
 	return &cfg, nil
 }
 
-func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatCompletion) (*llmadapter.Response, error) {
-	resp := llmadapter.Response{
+func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatCompletion) (*llmadapter.InnerResponse, error) {
+	resp := llmadapter.InnerResponse{
 		Model:      response.Model,
 		Candidates: make([]llmadapter.ResponseCandidate, len(response.Choices)),
 	}

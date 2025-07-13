@@ -12,8 +12,8 @@ type Candidater interface {
 	Candidate(int) (*ResponseCandidate, error)
 }
 
-// Response is a response from an LLM provider.
-type Response struct {
+// InnerResponse is a response from an LLM provider.
+type InnerResponse struct {
 	Model      string
 	Candidates []ResponseCandidate
 }
@@ -44,15 +44,15 @@ type ResponseToolCall struct {
 	Parameters []byte
 }
 
-type TypedResponse[T any] struct {
-	Response
+type Response[T any] struct {
+	InnerResponse
 }
 
-func (r TypedResponse[T]) NumCandidates() int {
+func (r Response[T]) NumCandidates() int {
 	return len(r.Candidates)
 }
 
-func (r TypedResponse[T]) Candidate(idx int) (*ResponseCandidate, error) {
+func (r Response[T]) Candidate(idx int) (*ResponseCandidate, error) {
 	if idx > len(r.Candidates)-1 {
 		return nil, errors.Newf("candidate %d does not exist (%d candidates)", idx, len(r.Candidates))
 	}
@@ -60,7 +60,7 @@ func (r TypedResponse[T]) Candidate(idx int) (*ResponseCandidate, error) {
 	return &r.Candidates[idx], nil
 }
 
-func (r TypedResponse[T]) Get(idx int) (T, error) {
+func (r Response[T]) Get(idx int) (T, error) {
 	if idx > len(r.Candidates)-1 {
 		return *new(T), errors.Newf("candidate %d does not exist (%d candidates)", idx, len(r.Candidates))
 	}

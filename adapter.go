@@ -1,12 +1,23 @@
 package llmadapter
 
 import (
+	"context"
+	"reflect"
+
+	"github.com/checkmarble/marble-llm-adapter/internal"
 	"github.com/cockroachdb/errors"
 )
 
 const (
 	defaultProvider = "__DEFAULT__"
 )
+
+type Llm interface {
+	Init(llm internal.Adapter) error
+	ResetContext()
+	ChatCompletion(context.Context, internal.Adapter, Requester) (*InnerResponse, error)
+	RequestOptionsType() reflect.Type
+}
 
 // LlmAdapter is the main entrypoint for interacting with different LLM providers.
 // It provides a unified interface to send requests and receive responses.
@@ -74,4 +85,16 @@ func (llm *LlmAdapter) GetProvider(requestProvider *string) (Llm, error) {
 	}
 
 	return provider, nil
+}
+
+func (llm LlmAdapter) DefaultModel() string {
+	return llm.defaultModel
+}
+
+func (llm LlmAdapter) ApiKey() string {
+	return llm.apiKey
+}
+
+func (llm LlmAdapter) SaveContext() bool {
+	return llm.saveContext
 }

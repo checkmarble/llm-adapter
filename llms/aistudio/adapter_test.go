@@ -125,7 +125,7 @@ func TestRequestAdapter(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, cfg.ResponseJsonSchema)
 
-		schema, ok := cfg.ResponseJsonSchema.(jsonschema.Schema)
+		schema, ok := cfg.ResponseJsonSchema.(*jsonschema.Schema)
 
 		assert.True(t, ok)
 		assert.Equal(t, "object", schema.Type)

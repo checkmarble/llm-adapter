@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/checkmarble/marble-llm-adapter/internal/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/invopop/jsonschema"
 )
@@ -40,7 +41,7 @@ func NewTool[T any](name, description string, fn functionBody) Tool {
 	return Tool{
 		Name:        name,
 		Description: description,
-		Parameters:  generateSchema[T]("", "").Schema,
+		Parameters:  utils.GenerateSchema[T](),
 		input:       *new(T),
 		function:    fn,
 	}

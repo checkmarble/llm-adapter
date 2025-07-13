@@ -70,7 +70,7 @@ func (p *AiStudio) ResetContext() {
 	p.history.Clear()
 }
 
-func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.LlmRequester) (*llmadapter.Response, error) {
+func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
 	model, ok := lo.Coalesce(requester.ToRequest().Model, p.model, lo.ToPtr(llm.DefaultModel()))
 	if !ok {
 		return nil, errors.New("no model was configured")
@@ -91,7 +91,7 @@ func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, req
 	return p.adaptResponse(llm, response)
 }
 
-func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.LlmRequester, opts RequestOptions) ([]*genai.Content, *genai.GenerateContentConfig, error) {
+func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.Requester, opts RequestOptions) ([]*genai.Content, *genai.GenerateContentConfig, error) {
 	r := requester.ToRequest()
 	contents := make([]*genai.Content, 0, len(r.Messages))
 
@@ -115,7 +115,7 @@ func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.LlmRe
 
 	if r.ResponseSchema != nil {
 		cfg.ResponseMIMEType = "application/json"
-		cfg.ResponseJsonSchema = r.ResponseSchema.Schema
+		cfg.ResponseJsonSchema = r.ResponseSchema
 	}
 
 	cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(_ string, t llmadapter.Tool) *genai.Tool {
@@ -205,8 +205,8 @@ Messages:
 	return contents, &cfg, nil
 }
 
-func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateContentResponse) (*llmadapter.Response, error) {
-	resp := llmadapter.Response{
+func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateContentResponse) (*llmadapter.InnerResponse, error) {
+	resp := llmadapter.InnerResponse{
 		Model:      response.ModelVersion,
 		Candidates: make([]llmadapter.ResponseCandidate, len(response.Candidates)),
 	}

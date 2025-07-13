@@ -21,8 +21,8 @@ func TestToolCalled(t *testing.T) {
 		return "called", nil
 	}))
 
-	resp := TypedResponse[struct{}]{
-		Response: Response{
+	resp := Response[struct{}]{
+		InnerResponse: InnerResponse{
 			Candidates: []ResponseCandidate{{
 				ToolCalls: []ResponseToolCall{
 					{
@@ -67,8 +67,8 @@ func TestToolNotCalled(t *testing.T) {
 		return "called", nil
 	}))
 
-	resp := TypedResponse[struct{}]{
-		Response: Response{
+	resp := Response[struct{}]{
+		InnerResponse: InnerResponse{
 			Candidates: []ResponseCandidate{{
 				ToolCalls: []ResponseToolCall{
 					{
@@ -101,8 +101,8 @@ func TestToolError(t *testing.T) {
 		return "called", errors.New("something went wrong")
 	}))
 
-	resp := TypedResponse[struct{}]{
-		Response: Response{
+	resp := Response[struct{}]{
+		InnerResponse: InnerResponse{
 			Candidates: []ResponseCandidate{{
 				ToolCalls: []ResponseToolCall{
 					{
@@ -133,8 +133,8 @@ func TestToolWrongArgumentType(t *testing.T) {
 		return "called", nil
 	}))
 
-	resp := TypedResponse[struct{}]{
-		Response: Response{
+	resp := Response[struct{}]{
+		InnerResponse: InnerResponse{
 			Candidates: []ResponseCandidate{{
 				ToolCalls: []ResponseToolCall{
 					{

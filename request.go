@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/checkmarble/marble-llm-adapter/internal"
+	"github.com/checkmarble/marble-llm-adapter/internal/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/invopop/jsonschema"
 	"github.com/samber/lo"
@@ -28,6 +29,11 @@ const (
 	TypeText MessageType = iota
 )
 
+type Requester interface {
+	ToRequest() innerRequest
+	ProviderRequestOptions(provider Llm) internal.ProviderRequestOptions
+}
+
 type Message struct {
 	Type  MessageType
 	Role  MessageRole
@@ -41,7 +47,7 @@ type Message struct {
 type innerRequest struct {
 	Model          *string
 	Messages       []Message
-	ResponseSchema *schema
+	ResponseSchema *jsonschema.Schema
 	Tools          map[string]Tool
 
 	MaxTokens     *int
@@ -102,7 +108,7 @@ func NewRequest[T any]() Request[T] {
 	switch any(*new(T)).(type) {
 	case string:
 	default:
-		r.ResponseSchema = lo.ToPtr(generateSchema[T]("", ""))
+		r.ResponseSchema = lo.ToPtr(utils.GenerateSchema[T]())
 	}
 
 	return Request[T]{
@@ -111,7 +117,7 @@ func NewRequest[T any]() Request[T] {
 }
 
 // Do executes a built request on the configured LLM provider.
-func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedResponse[T], error) {
+func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*Response[T], error) {
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -129,7 +135,7 @@ func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*TypedResponse[T],
 		return nil, err
 	}
 
-	return &TypedResponse[T]{*resp}, nil
+	return &Response[T]{*resp}, nil
 }
 
 func (r Request[T]) WithProvider(name string) Request[T] {
@@ -309,23 +315,16 @@ func (r Request[T]) WithTopP(topp float64) Request[T] {
 	return r
 }
 
-type schema struct {
-	Name        string
-	Description string
-	Schema      jsonschema.Schema
+func (r Request[T]) ToRequest() innerRequest {
+	return r.innerRequest
 }
 
-func generateSchema[S any](name string, description string) schema {
-	reflector := jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
+func (r Request[T]) ProviderRequestOptions(provider Llm) internal.ProviderRequestOptions {
+	var providerOpts internal.ProviderRequestOptions
+
+	if opts, ok := r.ProviderOptions[provider.RequestOptionsType()]; ok {
+		providerOpts = opts
 	}
 
-	jsonSchema := reflector.Reflect(new(S))
-
-	return schema{
-		Name:        name,
-		Description: description,
-		Schema:      *jsonSchema,
-	}
+	return providerOpts
 }

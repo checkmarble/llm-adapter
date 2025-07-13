@@ -12,8 +12,8 @@ func TestResponseGetOutput(t *testing.T) {
 		Text string `json:"text"`
 	}
 
-	r := llmadapter.TypedResponse[output]{
-		Response: llmadapter.Response{
+	r := llmadapter.Response[output]{
+		InnerResponse: llmadapter.InnerResponse{
 			Candidates: []llmadapter.ResponseCandidate{
 				{Text: `{"text":"first response"}`},
 				{Text: `{"text":"second response"}`},
@@ -43,8 +43,8 @@ func TestResponseGetCandidate(t *testing.T) {
 		Text string `json:"text"`
 	}
 
-	r := llmadapter.TypedResponse[output]{
-		Response: llmadapter.Response{
+	r := llmadapter.Response[output]{
+		InnerResponse: llmadapter.InnerResponse{
 			Candidates: []llmadapter.ResponseCandidate{
 				{Text: `{"text":"first response"}`},
 				{Text: `{"text":"second response"}`},
@@ -57,5 +57,5 @@ func TestResponseGetCandidate(t *testing.T) {
 	c, err := r.Candidate(0)
 
 	assert.Nil(t, err)
-	assert.Equal(t, r.Response.Candidates[0], *c)
+	assert.Equal(t, r.InnerResponse.Candidates[0], *c)
 }

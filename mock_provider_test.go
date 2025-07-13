@@ -24,6 +24,6 @@ func (p *MockProvider) Init(llm internal.Adapter) error {
 func (p *MockProvider) ResetContext() {
 }
 
-func (MockProvider) ChatCompletion(ctx context.Context, llm internal.Adapter, requester LlmRequester) (*Response, error) {
+func (MockProvider) ChatCompletion(ctx context.Context, llm internal.Adapter, requester Requester) (*InnerResponse, error) {
 	return nil, nil
 }
