@@ -1,5 +1,7 @@
 package llmadapter
 
+import "net/http"
+
 type llmOption func(*LlmAdapter)
 
 // WithDefaultProvider sets what LLM provider to use for communication.
@@ -52,5 +54,11 @@ func WithApiKey(key string) llmOption {
 func WithSaveContext() llmOption {
 	return func(llm *LlmAdapter) {
 		llm.saveContext = true
+	}
+}
+
+func WithHttpClient(client *http.Client) llmOption {
+	return func(llm *LlmAdapter) {
+		llm.httpClient = client
 	}
 }

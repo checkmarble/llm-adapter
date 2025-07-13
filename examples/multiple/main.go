@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
@@ -26,18 +25,12 @@ func main() {
 		llmadapter.WithSaveContext(),
 	)
 
-	ollamaResponse, err := llmadapter.NewUntypedRequest().WithProvider("ollama").WithModel("gemma3n:e4b").WithText(llmadapter.RoleUser, "How are you?").Do(ctx, llm)
-	if err != nil {
-		log.Fatal(err)
-	}
+	ollamaResponse, _ := llmadapter.NewUntypedRequest().WithProvider("ollama").WithModel("gemma3n:e4b").WithText(llmadapter.RoleUser, "How are you?").Do(ctx, llm)
 	ollamaCandidate, _ := ollamaResponse.Candidate(0)
 
-	vertexResponse, err := llmadapter.NewUntypedRequest().WithText(llmadapter.RoleUser, "How are you?").Do(ctx, llm)
-	if err != nil {
-		log.Fatal(err)
-	}
-	vertexCandidate, _ := vertexResponse.Candidate(0)
+	geminiResponse, _ := llmadapter.NewUntypedRequest().WithText(llmadapter.RoleUser, "How are you?").Do(ctx, llm)
+	geminiCandidate, _ := geminiResponse.Candidate(0)
 
 	fmt.Println(ollamaResponse.Model, "said", ollamaCandidate.Text)
-	fmt.Println(vertexResponse.Model, "said", vertexCandidate.Text)
+	fmt.Println(geminiResponse.Model, "said", geminiCandidate.Text)
 }

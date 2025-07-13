@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"reflect"
+	"time"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
 	"github.com/checkmarble/marble-llm-adapter/internal"
@@ -41,6 +42,9 @@ func (p *OpenAi) Init(llm internal.Adapter) error {
 		option.WithAPIKey(llm.ApiKey()),
 	}
 
+	if llm.HttpClient() != nil {
+		opts = append(opts, option.WithHTTPClient(llm.HttpClient()))
+	}
 	if p.baseUrl != "" {
 		opts = append(opts, option.WithBaseURL(p.baseUrl))
 	}
@@ -212,11 +216,26 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 
 func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatCompletion) (*llmadapter.InnerResponse, error) {
 	resp := llmadapter.InnerResponse{
+		Id:         response.ID,
 		Model:      response.Model,
 		Candidates: make([]llmadapter.ResponseCandidate, len(response.Choices)),
+		Created:    time.Unix(response.Created, 0),
 	}
 
 	for idx, candidate := range response.Choices {
+		finishReason := llmadapter.FinishReasonStop
+
+		switch candidate.FinishReason {
+		case "stop":
+			finishReason = llmadapter.FinishReasonStop
+		case "length":
+			finishReason = llmadapter.FinishReasonMaxTokens
+		case "content_filter":
+			finishReason = llmadapter.FinishReasonContentFilter
+		default:
+			finishReason = llmadapter.FinishReason(candidate.FinishReason)
+		}
+
 		toolCalls := make([]llmadapter.ResponseToolCall, len(candidate.Message.ToolCalls))
 
 		for idx, toolCall := range candidate.Message.ToolCalls {
@@ -228,8 +247,9 @@ func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatComple
 		}
 
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
-			Text:      candidate.Message.Content,
-			ToolCalls: toolCalls,
+			Text:         candidate.Message.Content,
+			ToolCalls:    toolCalls,
+			FinishReason: finishReason,
 			SelectCandidate: func() {
 				if llm.SaveContext() {
 					msg := openai.ChatCompletionMessageParamUnion{

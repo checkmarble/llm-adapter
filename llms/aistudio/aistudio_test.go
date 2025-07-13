@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
 	"github.com/checkmarble/marble-llm-adapter/llms/aistudio"
@@ -16,9 +17,11 @@ import (
 
 const aistudioResponse = `
 {
+	"responseId": "theid",
 	"modelVersion": "themodel",
     "candidates": [
         {
+        	"finishReason": "STOP",
             "content": {
             	"role": "model",
             	"parts": [
@@ -26,7 +29,8 @@ const aistudioResponse = `
                 ]
             }
         }
-    ]
+    ],
+    "createTime": "2025-07-13T16:20:00Z"
 }
 `
 
@@ -41,8 +45,9 @@ func TestGoogleAiRequest(t *testing.T) {
 		Name string `json:"name" jsonschema_description:"My name"`
 	}
 
-	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendGeminiAPI))
-	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithApiKey("apikey"))
+	httpClient := &http.Client{}
+	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendVertexAI), aistudio.WithLocation("location"), aistudio.WithProject("project"))
+	llm, err := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithHttpClient(httpClient))
 
 	req := llmadapter.NewRequest[Output]().
 		WithModel("themodel").
@@ -54,9 +59,10 @@ func TestGoogleAiRequest(t *testing.T) {
 		}))).
 		WithTextReader(llmadapter.RoleUser, strings.NewReader("text from reader"))
 
-	gock.New("https://generativelanguage.googleapis.com").
-		Post("/v1beta/models/themodel:generateContent").
-		MatchHeader("x-goog-api-key", "apikey").
+	gock.InterceptClient(httpClient)
+
+	gock.New("https://location-aiplatform.googleapis.com").
+		Post("/v1beta1/projects/project/locations/location/publishers/google/models/themodel:generateContent").
 		AddMatcher(func(req *http.Request, _ *gock.Request) (bool, error) {
 			body, _ := io.ReadAll(req.Body)
 
@@ -96,11 +102,19 @@ func TestGoogleAiRequest(t *testing.T) {
 	assert.False(t, gock.HasUnmatchedRequest())
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, 1, resp.NumCandidates())
-	assert.Equal(t, "themodel", resp.Model)
 
-	candidate, err := resp.Get(0)
+	assert.Equal(t, "theid", resp.Id)
+	assert.Equal(t, "themodel", resp.Model)
+	assert.WithinDuration(t, time.Date(2025, 7, 13, 16, 20, 0, 0, time.UTC), resp.Created, 0)
+	assert.Equal(t, 1, resp.NumCandidates())
+
+	candidate, err := resp.Candidate(0)
 
 	assert.Nil(t, err)
-	assert.Equal(t, "The JSON response from the provider.", candidate.Reply)
+	assert.Equal(t, llmadapter.FinishReasonStop, candidate.FinishReason)
+
+	output, err := resp.Get(0)
+
+	assert.Nil(t, err)
+	assert.Equal(t, "The JSON response from the provider.", output.Reply)
 }

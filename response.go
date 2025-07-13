@@ -2,8 +2,19 @@ package llmadapter
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/cockroachdb/errors"
+)
+
+type (
+	FinishReason string
+)
+
+const (
+	FinishReasonStop      FinishReason = "stop"
+	FinishReasonMaxTokens              = "max_tokens"
+	FinishReasonContentFilter
 )
 
 // Candidater represents a type that can have several candidates.
@@ -14,13 +25,16 @@ type Candidater interface {
 
 // InnerResponse is a response from an LLM provider.
 type InnerResponse struct {
+	Id         string
 	Model      string
 	Candidates []ResponseCandidate
+	Created    time.Time
 }
 
 // ResponseCandidate represent a response from an LLM provider.
 type ResponseCandidate struct {
 	Text            string
+	FinishReason    FinishReason
 	ToolCalls       []ResponseToolCall
 	Grounding       *ResponseGrounding
 	SelectCandidate func()

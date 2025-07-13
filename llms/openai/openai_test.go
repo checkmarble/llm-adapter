@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
 	"github.com/checkmarble/marble-llm-adapter/llms/openai"
@@ -15,17 +16,20 @@ import (
 
 const openaiResponse = `
 {
+	"id": "theid",
 	"model": "themodel",
 	"choices": [
 	    {
 			"index": 0,
+			"finish_reason": "stop",
 			"message": {
 		        "type": "message",
 		        "role": "assistant",
 		        "content": "{\"reply\":\"The JSON response from the provider.\"}"
 			}
 	    }
-	]
+	],
+	"created": 1752423600
 }
 `
 
@@ -94,11 +98,18 @@ func TestOpenAiRequest(t *testing.T) {
 	assert.False(t, gock.HasUnmatchedRequest())
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, 1, resp.NumCandidates())
 	assert.Equal(t, "themodel", resp.Model)
+	assert.Equal(t, "theid", resp.Id)
+	assert.WithinDuration(t, time.Date(2025, 7, 13, 16, 20, 0, 0, time.UTC), resp.Created, 0)
+	assert.Equal(t, 1, resp.NumCandidates())
 
-	candidate, err := resp.Get(0)
+	candidate, err := resp.Candidate(0)
 
 	assert.Nil(t, err)
-	assert.Equal(t, "The JSON response from the provider.", candidate.Reply)
+	assert.Equal(t, llmadapter.FinishReasonStop, candidate.FinishReason)
+
+	output, err := resp.Get(0)
+
+	assert.Nil(t, err)
+	assert.Equal(t, "The JSON response from the provider.", output.Reply)
 }

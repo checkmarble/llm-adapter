@@ -2,6 +2,7 @@ package llmadapter
 
 import (
 	"context"
+	"net/http"
 	"reflect"
 
 	"github.com/checkmarble/marble-llm-adapter/internal"
@@ -24,6 +25,8 @@ type Llm interface {
 type LlmAdapter struct {
 	providers       map[string]Llm
 	defaultProvider Llm
+
+	httpClient *http.Client
 
 	defaultModel string
 	apiKey       string
@@ -97,4 +100,7 @@ func (llm LlmAdapter) ApiKey() string {
 
 func (llm LlmAdapter) SaveContext() bool {
 	return llm.saveContext
+}
+func (llm LlmAdapter) HttpClient() *http.Client {
+	return llm.httpClient
 }

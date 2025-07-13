@@ -42,7 +42,8 @@ func New(opts ...opt) (*AiStudio, error) {
 
 func (p *AiStudio) Init(adapter internal.Adapter) error {
 	cfg := genai.ClientConfig{
-		Backend: genai.BackendGeminiAPI,
+		Backend:    genai.BackendGeminiAPI,
+		HTTPClient: adapter.HttpClient(),
 	}
 
 	if p.backend != genai.BackendUnspecified {
@@ -207,13 +208,28 @@ Messages:
 
 func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateContentResponse) (*llmadapter.InnerResponse, error) {
 	resp := llmadapter.InnerResponse{
+		Id:         response.ResponseID,
 		Model:      response.ModelVersion,
 		Candidates: make([]llmadapter.ResponseCandidate, len(response.Candidates)),
+		Created:    response.CreateTime,
 	}
 
 	for idx, candidate := range response.Candidates {
 		if len(candidate.Content.Parts) == 0 {
 			return nil, errors.New("LLM provider generated no content")
+		}
+
+		finishReason := llmadapter.FinishReasonStop
+
+		switch candidate.FinishReason {
+		case genai.FinishReasonStop:
+			finishReason = llmadapter.FinishReasonStop
+		case genai.FinishReasonMaxTokens:
+			finishReason = llmadapter.FinishReasonMaxTokens
+		case genai.FinishReasonProhibitedContent:
+			finishReason = llmadapter.FinishReasonContentFilter
+		default:
+			finishReason = llmadapter.FinishReason(candidate.FinishReason)
 		}
 
 		var grounding *llmadapter.ResponseGrounding
@@ -249,9 +265,10 @@ func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateC
 		}
 
 		resp.Candidates[idx] = llmadapter.ResponseCandidate{
-			Text:      candidate.Content.Parts[0].Text,
-			ToolCalls: toolCalls,
-			Grounding: grounding,
+			Text:         candidate.Content.Parts[0].Text,
+			ToolCalls:    toolCalls,
+			FinishReason: finishReason,
+			Grounding:    grounding,
 			SelectCandidate: func() {
 				if llm.SaveContext() {
 					p.history.Save(candidate.Content)
