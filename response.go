@@ -13,8 +13,8 @@ type (
 
 const (
 	FinishReasonStop          FinishReason = "stop"
-	FinishReasonMaxTokens                  = "max_tokens"
-	FinishReasonContentFilter              = "content_filter"
+	FinishReasonMaxTokens     FinishReason = "max_tokens"
+	FinishReasonContentFilter FinishReason = "content_filter"
 )
 
 // Candidater represents a type that can have several candidates.
@@ -99,7 +99,7 @@ func (r Response[T]) Get(idx int) (T, error) {
 		output := new(T)
 
 		if err := json.Unmarshal([]byte(candidate.Text), output); err != nil {
-			return *new(T), errors.Wrap(err, "failed to decode response to schema")
+			return *output, errors.Wrap(err, "failed to decode response to schema")
 		}
 
 		return *output, nil

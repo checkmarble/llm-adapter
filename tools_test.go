@@ -153,3 +153,32 @@ func TestToolWrongArgumentType(t *testing.T) {
 	assert.ErrorContains(t, req.err, "tool 'name' should take an argument of type Args, not float64")
 	assert.Equal(t, 0, called)
 }
+
+func TestToolWithoutSelectedCandidate(t *testing.T) {
+	type Args struct {
+		Integer int `json:"integer"`
+	}
+
+	tool := NewTool[Args]("name", "", Function(func(args Args) (string, error) {
+		return "called", nil
+	}))
+
+	req := NewUntypedRequest().WithToolExecution(tool)
+
+	assert.ErrorContains(t, req.err, "cannot execute tools")
+}
+
+func TestToolWithInvalidSelectedCandidate(t *testing.T) {
+	type Args struct {
+		Integer int `json:"integer"`
+	}
+
+	tool := NewTool[Args]("name", "", Function(func(args Args) (string, error) {
+		return "called", nil
+	}))
+
+	resp := Response[struct{}]{}
+	req := NewUntypedRequest().FromCandidate(resp, 2).WithToolExecution(tool)
+
+	assert.ErrorContains(t, req.err, "candidate 2 does not exist")
+}

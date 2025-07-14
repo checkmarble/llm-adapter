@@ -4,47 +4,20 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-func TestOptions(t *testing.T) {
-	llm, err := New(WithApiKey("apikey"))
+func TestProviderInitError(t *testing.T) {
+	p := NewMockProvider()
+	p.On("Init", mock.Anything).Return(errors.New("could not initialize provider"))
 
-	assert.Nil(t, err)
-	assert.Equal(t, "apikey", llm.ApiKey())
+	llm, err := New(WithDefaultProvider(p))
 
-	llm, err = New(WithDefaultModel("themodel"))
-
-	assert.Nil(t, err)
-	assert.Equal(t, "themodel", llm.DefaultModel())
-
-	expectedDefaultProvider, _ := NewMockProvider()
-	expectedProvider1, _ := NewMockProvider()
-	expectedProvider2, _ := NewMockProvider()
-
-	llm, err = New(
-		WithDefaultProvider(expectedDefaultProvider),
-		WithProvider("provider1", expectedProvider1),
-		WithProvider("provider2", expectedProvider2),
-	)
-
-	assert.Nil(t, err)
-
-	defaultProvider, err := llm.GetProvider(nil)
-
-	assert.Nil(t, err)
-	assert.Equal(t, expectedDefaultProvider, defaultProvider)
-
-	provider1, err := llm.GetProvider(lo.ToPtr("provider1"))
-
-	assert.Nil(t, err)
-	assert.Equal(t, expectedProvider1, provider1)
-
-	provider2, err := llm.GetProvider(lo.ToPtr("provider2"))
-
-	assert.Nil(t, err)
-	assert.Equal(t, expectedProvider2, provider2)
+	assert.ErrorContains(t, err, "could not initialize provider")
+	assert.Nil(t, llm)
 }
 
 type mockProvider1Opts struct {
@@ -57,7 +30,7 @@ type mockProvider1 struct {
 	MockProvider
 }
 
-func (mockProvider1) RequestOptionsType() reflect.Type {
+func (*mockProvider1) RequestOptionsType() reflect.Type {
 	return reflect.TypeFor[mockProvider1Opts]()
 }
 
@@ -71,7 +44,7 @@ type mockProvider2 struct {
 	MockProvider
 }
 
-func (mockProvider2) RequestOptionsType() reflect.Type {
+func (*mockProvider2) RequestOptionsType() reflect.Type {
 	return reflect.TypeFor[mockProvider2Opts]()
 }
 
@@ -88,34 +61,43 @@ func TestProviderRequestOptions(t *testing.T) {
 }
 
 func TestProviderHistory(t *testing.T) {
-	provider1 := MockProvider{}
-	provider2 := MockProvider{}
+	provider1 := NewMockProvider()
+	provider2 := NewMockProvider()
+
+	provider1.On("Init", mock.Anything).Return(nil)
+	provider2.On("Init", mock.Anything).Return(nil)
 
 	llm, _ := New(
-		WithProvider("provider1", &provider1),
-		WithProvider("provider2", &provider2),
+		WithProvider("provider1", provider1),
+		WithProvider("provider2", provider2),
 		WithSaveContext(),
 	)
+
+	provider1.On("ChatCompletion", mock.Anything, llm, mock.Anything).Return(MockMessage{"Hello, world!"}, nil).Once()
+	provider2.On("ChatCompletion", mock.Anything, llm, mock.Anything).Return(MockMessage{"Hello, world!"}, nil)
 
 	resp1, _ := NewUntypedRequest().WithText(RoleUser, "").Do(t.Context(), llm)
 
 	assert.Len(t, provider1.History.Load(), 0)
 	assert.Len(t, provider2.History.Load(), 0)
 
+	provider1.On("ChatCompletion", mock.Anything, llm, mock.Anything).Return(MockMessage{"Hello, world 2!"}, nil).Once()
+
 	resp2, _ := NewUntypedRequest().FromCandidate(resp1, 0).Do(t.Context(), llm)
 
 	assert.Len(t, provider1.History.Load(), 1)
 	assert.Len(t, provider2.History.Load(), 0)
 
+	provider1.On("ChatCompletion", mock.Anything, llm, mock.Anything).Return(MockMessage{"Hello, world 3!"}, nil).Once()
+
 	_, _ = NewUntypedRequest().FromCandidate(resp2, 0).Do(t.Context(), llm)
 
 	assert.Len(t, provider1.History.Load(), 2)
-	assert.ElementsMatch(t, provider1.History.Load(), []MockMessage{{"Hello, world!"}, {"Hello, world!"}})
+	assert.ElementsMatch(t, provider1.History.Load(), []MockMessage{{"Hello, world!"}, {"Hello, world 2!"}})
 	assert.Len(t, provider2.History.Load(), 0)
 
 	resp4, _ := NewUntypedRequest().WithProvider("provider2").Do(t.Context(), llm)
 	cand, _ := resp4.Candidate(0)
-
 	cand.SelectCandidate()
 
 	assert.Len(t, provider1.History.Load(), 2)
@@ -130,4 +112,52 @@ func TestProviderHistory(t *testing.T) {
 
 	assert.Len(t, provider1.History.Load(), 0)
 	assert.Len(t, provider2.History.Load(), 0)
+}
+
+func TestGetDefaultProvider(t *testing.T) {
+	provider := NewMockProvider()
+	provider.On("Init", mock.Anything).Return(nil)
+
+	llm, _ := New()
+	p, err := llm.GetProvider(nil)
+
+	assert.ErrorContains(t, err, "no provider was configured")
+	assert.Nil(t, p)
+
+	llm, _ = New(WithProvider("theprovider", provider))
+	p, err = llm.GetProvider(nil)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, p)
+	assert.Equal(t, provider, p)
+
+	p, err = llm.GetProvider(nil)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, p)
+	assert.Equal(t, provider, p)
+
+	secondProvider := NewMockProvider()
+	secondProvider.On("Init", mock.Anything).Return(nil)
+
+	llm, _ = New(WithDefaultProvider(provider), WithProvider("secondprovider", secondProvider))
+
+	p, err = llm.GetProvider(nil)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, p)
+	assert.Equal(t, provider, p)
+	assert.NotEqual(t, secondProvider, p)
+
+	p, err = llm.GetProvider(lo.ToPtr("secondprovider"))
+
+	assert.Nil(t, err)
+	assert.NotNil(t, p)
+	assert.Equal(t, secondProvider, p)
+	assert.NotEqual(t, provider, p)
+
+	p, err = llm.GetProvider(lo.ToPtr("unknown"))
+
+	assert.ErrorContains(t, err, "unknown provider")
+	assert.Nil(t, p)
 }

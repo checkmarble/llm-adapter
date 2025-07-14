@@ -8,7 +8,6 @@ import (
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
 	"github.com/checkmarble/marble-llm-adapter/llms/aistudio"
-	"github.com/k0kubun/pp/v3"
 	"google.golang.org/genai"
 )
 
@@ -47,7 +46,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	pp.Println(resp1.Get(0))
+	out, _ := resp1.Get(0)
+
+	fmt.Println("Reply:", out.Reply, "Random:", out.Random)
 
 	resp2, err := llmadapter.NewUntypedRequest().
 		FromCandidate(resp1, 0).

@@ -86,11 +86,11 @@ func (t Tool) Call(paramsJson []byte) (string, error) {
 		return "", rets[1].Interface().(error)
 	}
 
-	// Otherwise, we should have a string here.
+	// Otherwise, we should have a string here, so this check is also extraneous.
 	output, ok := rets[0].Interface().(string)
 
 	if !ok {
-		panic("tool function should return (string, error)")
+		return "", errors.New("tool function should return (string, error)")
 	}
 
 	return output, nil

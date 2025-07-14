@@ -293,7 +293,7 @@ func (r Request[T]) withToolResponse(tool ResponseToolCall, parts string) Reques
 // which function the provider asked to be called.
 func (r Request[T]) WithToolExecution(tools ...internal.Tool) Request[T] {
 	if r.respondsTo == nil {
-		r.err = errors.CombineErrors(r.err, errors.New("cannot execute tool %s without selecting a response candidate, call FromCandidate() first"))
+		r.err = errors.CombineErrors(r.err, errors.Newf("cannot execute tools without selecting a response candidate, call FromCandidate() first"))
 		return r
 	}
 

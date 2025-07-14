@@ -218,7 +218,7 @@ func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateC
 			return nil, errors.New("LLM provider generated no content")
 		}
 
-		finishReason := llmadapter.FinishReasonStop
+		var finishReason llmadapter.FinishReason
 
 		switch candidate.FinishReason {
 		case genai.FinishReasonStop:

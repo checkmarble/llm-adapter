@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
 	"github.com/checkmarble/marble-llm-adapter/llms/openai"
-	"github.com/k0kubun/pp/v3"
 )
 
 func main() {
@@ -21,5 +21,5 @@ func main() {
 
 	resp, _ := llmadapter.NewUntypedRequest().WithProvider("ollama").WithText(llmadapter.RoleUser, "How are you?").Do(ctx, llm)
 
-	pp.Println(resp)
+	fmt.Println(resp)
 }

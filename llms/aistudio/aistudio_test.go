@@ -45,7 +45,7 @@ func TestGoogleAiRequest(t *testing.T) {
 
 	httpClient := &http.Client{}
 	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendVertexAI), aistudio.WithLocation("location"), aistudio.WithProject("project"))
-	llm, err := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithHttpClient(httpClient))
+	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithHttpClient(httpClient))
 
 	req := llmadapter.NewRequest[Output]().
 		WithModel("themodel").

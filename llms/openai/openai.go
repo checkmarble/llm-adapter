@@ -223,7 +223,7 @@ func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatComple
 	}
 
 	for idx, candidate := range response.Choices {
-		finishReason := llmadapter.FinishReasonStop
+		var finishReason llmadapter.FinishReason
 
 		switch candidate.FinishReason {
 		case "stop":

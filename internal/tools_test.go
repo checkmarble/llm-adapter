@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/cockroachdb/errors"
@@ -80,8 +79,6 @@ func TestCallToolWrongArguments(t *testing.T) {
 	})
 
 	_, err = tool.Call([]byte(`{"number":42}`))
-
-	fmt.Println(err)
 
 	assert.NotNil(t, err)
 	assert.Equal(t, 0, called)

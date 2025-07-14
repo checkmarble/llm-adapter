@@ -6,7 +6,6 @@ require (
 	github.com/cockroachdb/errors v1.12.0
 	github.com/h2non/gock v1.2.0
 	github.com/invopop/jsonschema v0.13.0
-	github.com/k0kubun/pp/v3 v3.5.0
 	github.com/openai/openai-go v1.9.0
 	github.com/samber/lo v1.51.0
 	github.com/stretchr/testify v1.10.0
@@ -34,11 +33,10 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect

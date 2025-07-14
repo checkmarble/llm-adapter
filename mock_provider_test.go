@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/checkmarble/marble-llm-adapter/internal"
+	"github.com/stretchr/testify/mock"
 )
 
 type MockMessage struct {
@@ -12,23 +13,25 @@ type MockMessage struct {
 }
 
 type MockProvider struct {
+	mock.Mock
+
 	History History[MockMessage]
 }
 
-func (MockProvider) RequestOptionsType() reflect.Type {
+func (*MockProvider) RequestOptionsType() reflect.Type {
 	return nil
 }
 
-func NewMockProvider() (*MockProvider, error) {
+func NewMockProvider() *MockProvider {
 	return &MockProvider{
 		History: History[MockMessage]{
 			history: make([]MockMessage, 0),
 		},
-	}, nil
+	}
 }
 
 func (p *MockProvider) Init(llm internal.Adapter) error {
-	return nil
+	return p.Called(llm).Error(0)
 }
 
 func (p *MockProvider) ResetContext() {
@@ -36,11 +39,18 @@ func (p *MockProvider) ResetContext() {
 }
 
 func (p *MockProvider) ChatCompletion(ctx context.Context, llm internal.Adapter, requester Requester) (*InnerResponse, error) {
-	msg := MockMessage{"Hello, world!"}
+	args := p.Called(ctx, llm, requester)
+
+	if args.Error(1) != nil {
+		return nil, args.Error(1)
+	}
+
+	msg := args.Get(0).(MockMessage)
 
 	return &InnerResponse{
 		Candidates: []ResponseCandidate{
 			{
+				Text: msg.Text,
 				SelectCandidate: func() {
 					p.History.Save(msg)
 				},
