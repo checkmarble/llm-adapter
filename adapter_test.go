@@ -86,3 +86,48 @@ func TestProviderRequestOptions(t *testing.T) {
 	assert.Equal(t, mockProvider1Opts{Text: "thetext"}, req.WithProvider("provider1").ProviderRequestOptions(&provider1))
 	assert.Equal(t, mockProvider2Opts{Number: 42}, req.WithProvider("provider2").ProviderRequestOptions(&provider2))
 }
+
+func TestProviderHistory(t *testing.T) {
+	provider1 := MockProvider{}
+	provider2 := MockProvider{}
+
+	llm, _ := New(
+		WithProvider("provider1", &provider1),
+		WithProvider("provider2", &provider2),
+		WithSaveContext(),
+	)
+
+	resp1, _ := NewUntypedRequest().WithText(RoleUser, "").Do(t.Context(), llm)
+
+	assert.Len(t, provider1.History.Load(), 0)
+	assert.Len(t, provider2.History.Load(), 0)
+
+	resp2, _ := NewUntypedRequest().FromCandidate(resp1, 0).Do(t.Context(), llm)
+
+	assert.Len(t, provider1.History.Load(), 1)
+	assert.Len(t, provider2.History.Load(), 0)
+
+	_, _ = NewUntypedRequest().FromCandidate(resp2, 0).Do(t.Context(), llm)
+
+	assert.Len(t, provider1.History.Load(), 2)
+	assert.ElementsMatch(t, provider1.History.Load(), []MockMessage{{"Hello, world!"}, {"Hello, world!"}})
+	assert.Len(t, provider2.History.Load(), 0)
+
+	resp4, _ := NewUntypedRequest().WithProvider("provider2").Do(t.Context(), llm)
+	cand, _ := resp4.Candidate(0)
+
+	cand.SelectCandidate()
+
+	assert.Len(t, provider1.History.Load(), 2)
+	assert.Len(t, provider2.History.Load(), 1)
+
+	llm.ResetContext("provider2")
+
+	assert.Len(t, provider1.History.Load(), 2)
+	assert.Len(t, provider2.History.Load(), 0)
+
+	llm.ResetContext()
+
+	assert.Len(t, provider1.History.Load(), 0)
+	assert.Len(t, provider2.History.Load(), 0)
+}

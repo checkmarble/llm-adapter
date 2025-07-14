@@ -73,14 +73,13 @@ func (t Tool) Call(paramsJson []byte) (string, error) {
 	if fn.Type().In(0) != argType {
 		return "", errors.Newf("tool '%s' should take an argument of type %s, not %s", t.Name, argType.Name(), fn.Type().In(0).Name())
 	}
+	// Once again, this should still be an invariant of the only function in the public API can build FunctionBody.
+	if fn.Type().NumOut() != 2 || fn.Type().Out(0) != reflect.TypeFor[string]() || fn.Type().Out(1) != reflect.TypeFor[error]() {
+		return "", errors.New("tool functions should return (string, error)")
+	}
 
 	args := []reflect.Value{reflect.ValueOf(params).Elem()}
 	rets := fn.Call(args)
-
-	// Once again, this should still be an invariant of the only function in the public API can build FunctionBody.
-	if len(rets) != 2 {
-		panic("tool functions should return (string, error)")
-	}
 
 	// Code path when the function returns an error
 	if !rets[1].IsNil() {
