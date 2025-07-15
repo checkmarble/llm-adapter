@@ -18,6 +18,7 @@ type AiStudio struct {
 	history llmadapter.History[*genai.Content]
 
 	backend  genai.Backend
+	apiKey   string
 	project  string
 	location string
 	model    *string
@@ -50,7 +51,7 @@ func (p *AiStudio) Init(adapter internal.Adapter) error {
 	}
 	switch cfg.Backend {
 	case genai.BackendGeminiAPI:
-		cfg.APIKey = adapter.ApiKey()
+		cfg.APIKey = p.apiKey
 	case genai.BackendVertexAI:
 		cfg.Project = p.project
 		cfg.Location = p.location
@@ -66,8 +67,8 @@ func (p *AiStudio) Init(adapter internal.Adapter) error {
 	return nil
 }
 
-func (p *AiStudio) ResetContext() {
-	p.history.Clear()
+func (p *AiStudio) ResetContext(threadId *llmadapter.ThreadId) {
+	p.history.Clear(threadId)
 }
 
 func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
@@ -88,15 +89,15 @@ func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, req
 		return nil, errors.Wrap(err, "LLM provider failed to generate content")
 	}
 
-	return p.adaptResponse(llm, response)
+	return p.adaptResponse(llm, response, requester)
 }
 
 func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.Requester, opts RequestOptions) ([]*genai.Content, *genai.GenerateContentConfig, error) {
 	r := requester.ToRequest()
 	contents := make([]*genai.Content, 0, len(r.Messages))
 
-	if llm.SaveContext() {
-		contents = append(contents, p.history.Load()...)
+	if r.ThreadId != nil {
+		contents = append(contents, p.history.Load(r.ThreadId)...)
 	}
 
 	cfg := genai.GenerateContentConfig{
@@ -114,8 +115,14 @@ func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.Reque
 	}
 
 	if r.ResponseSchema != nil {
+		r.ResponseSchema.Description = r.SchemaDescription
+
+		if r.SchemaOverride != nil {
+			r.SchemaOverride.Description = r.SchemaDescription
+		}
+
 		cfg.ResponseMIMEType = "application/json"
-		cfg.ResponseJsonSchema = r.ResponseSchema
+		cfg.ResponseJsonSchema = lo.CoalesceOrEmpty(r.SchemaOverride, r.ResponseSchema)
 	}
 
 	cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(_ string, t internal.Tool) *genai.Tool {
@@ -135,6 +142,10 @@ Messages:
 		parts := make([]*genai.Part, 0, len(msg.Parts))
 
 		for _, part := range msg.Parts {
+			if seeker, ok := part.(io.ReadSeeker); ok {
+				seeker.Seek(0, 0)
+			}
+
 			buf, err := io.ReadAll(part)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "could not read content part")
@@ -169,8 +180,8 @@ Messages:
 
 			contents = append(contents, msg)
 
-			if llm.SaveContext() {
-				p.history.Save(msg)
+			if r.ThreadId != nil && !r.SkipSaveInput {
+				p.history.Save(r.ThreadId, msg)
 			}
 
 			continue Messages
@@ -183,8 +194,8 @@ Messages:
 
 			cfg.SystemInstruction.Parts = append(cfg.SystemInstruction.Parts, parts...)
 
-			if llm.SaveContext() {
-				p.history.Save(cfg.SystemInstruction)
+			if r.ThreadId != nil && !r.SkipSaveInput {
+				p.history.Save(r.ThreadId, cfg.SystemInstruction)
 			}
 
 			continue Messages
@@ -195,8 +206,8 @@ Messages:
 			Parts: parts,
 		}
 
-		if llm.SaveContext() {
-			p.history.Save(content)
+		if r.ThreadId != nil && !r.SkipSaveInput {
+			p.history.Save(r.ThreadId, content)
 		}
 
 		contents = append(contents, content)
@@ -205,7 +216,7 @@ Messages:
 	return contents, &cfg, nil
 }
 
-func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateContentResponse) (*llmadapter.InnerResponse, error) {
+func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateContentResponse, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
 	resp := llmadapter.InnerResponse{
 		Id:         response.ResponseID,
 		Model:      response.ModelVersion,
@@ -269,8 +280,10 @@ func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateC
 			FinishReason: finishReason,
 			Grounding:    grounding,
 			SelectCandidate: func() {
-				if llm.SaveContext() {
-					p.history.Save(candidate.Content)
+				req := requester.ToRequest()
+
+				if req.ThreadId != nil && !req.SkipSaveOutput {
+					p.history.Save(req.ThreadId, candidate.Content)
 				}
 			},
 		}

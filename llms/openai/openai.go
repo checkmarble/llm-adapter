@@ -20,6 +20,7 @@ type OpenAi struct {
 	history llmadapter.History[openai.ChatCompletionMessageParamUnion]
 
 	baseUrl string
+	apiKey  string
 	model   *string
 }
 
@@ -39,7 +40,7 @@ func New(opts ...opt) (*OpenAi, error) {
 
 func (p *OpenAi) Init(llm internal.Adapter) error {
 	opts := []option.RequestOption{
-		option.WithAPIKey(llm.ApiKey()),
+		option.WithAPIKey(p.apiKey),
 	}
 
 	if llm.HttpClient() != nil {
@@ -54,8 +55,8 @@ func (p *OpenAi) Init(llm internal.Adapter) error {
 	return nil
 }
 
-func (p *OpenAi) ResetContext() {
-	p.history.Clear()
+func (p *OpenAi) ResetContext(threadId *llmadapter.ThreadId) {
+	p.history.Clear(threadId)
 }
 
 func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
@@ -69,15 +70,15 @@ func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, reque
 		return nil, errors.Wrap(err, "LLM provider failed to generate content")
 	}
 
-	return p.adaptResponse(llm, response)
+	return p.adaptResponse(llm, response, requester)
 }
 
 func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Requester) (*openai.ChatCompletionNewParams, error) {
 	r := requester.ToRequest()
 	contents := make([]openai.ChatCompletionMessageParamUnion, 0, len(r.Messages))
 
-	if llm.SaveContext() {
-		contents = append(contents, p.history.Load()...)
+	if r.ThreadId != nil {
+		contents = append(contents, p.history.Load(r.ThreadId)...)
 	}
 
 	model, ok := lo.Coalesce(r.Model, p.model, lo.ToPtr(llm.DefaultModel()))
@@ -107,8 +108,10 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 		cfg.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
 			OfJSONSchema: &openai.ResponseFormatJSONSchemaParam{
 				JSONSchema: openai.ResponseFormatJSONSchemaJSONSchemaParam{
-					Schema: r.ResponseSchema,
-					Strict: openai.Bool(true),
+					Name:        r.SchemaName,
+					Description: openai.String(r.SchemaDescription),
+					Schema:      lo.CoalesceOrEmpty(r.SchemaOverride, r.ResponseSchema),
+					Strict:      openai.Bool(true),
 				},
 			},
 		}
@@ -140,6 +143,10 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 		parts := make([]openai.ChatCompletionContentPartUnionParam, 0, len(msg.Parts))
 
 		for _, part := range msg.Parts {
+			if seeker, ok := part.(io.ReadSeeker); ok {
+				seeker.Seek(0, 0)
+			}
+
 			buf, err := io.ReadAll(part)
 			if err != nil {
 				return nil, errors.Wrap(err, "could not read content part")
@@ -204,8 +211,8 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 			}
 		}
 
-		if llm.SaveContext() {
-			p.history.Save(content)
+		if r.ThreadId != nil && !r.SkipSaveInput {
+			p.history.Save(r.ThreadId, content)
 		}
 
 		cfg.Messages = append(cfg.Messages, content)
@@ -214,7 +221,7 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 	return &cfg, nil
 }
 
-func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatCompletion) (*llmadapter.InnerResponse, error) {
+func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatCompletion, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
 	resp := llmadapter.InnerResponse{
 		Id:         response.ID,
 		Model:      response.Model,
@@ -251,7 +258,9 @@ func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatComple
 			ToolCalls:    toolCalls,
 			FinishReason: finishReason,
 			SelectCandidate: func() {
-				if llm.SaveContext() {
+				req := requester.ToRequest()
+
+				if req.ThreadId != nil && !req.SkipSaveOutput {
 					msg := openai.ChatCompletionMessageParamUnion{
 						OfAssistant: &openai.ChatCompletionAssistantMessageParam{
 							ToolCalls: candidate.Message.ToParam().GetToolCalls(),
@@ -261,7 +270,7 @@ func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatComple
 						},
 					}
 
-					p.history.Save(msg)
+					p.history.Save(req.ThreadId, msg)
 				}
 			},
 		}

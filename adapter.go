@@ -22,7 +22,7 @@ type Llm interface {
 	Init(llm internal.Adapter) error
 	// ResetContext clears the conversation history for the specific LLM provider.
 	// This allows starting a new conversation without re-initializing the provider.
-	ResetContext()
+	ResetContext(*ThreadId)
 	// ChatCompletion sends a chat completion request to the LLM provider.
 	// It takes a context, the adapter's internal configuration, and a Requester
 	// to retrieve the request.
@@ -42,7 +42,6 @@ type LlmAdapter struct {
 	httpClient *http.Client
 
 	defaultModel string
-	apiKey       string
 	saveContext  bool
 }
 
@@ -79,15 +78,9 @@ func New(opts ...llmOption) (*LlmAdapter, error) {
 // new adapter instance. This also clears the systems instructions.
 // If called without arguments, will clear the history of the default provider,
 // otherwise, it accepts variadic provider names for which to clear the history.
-func (llm *LlmAdapter) ResetContext(providers ...string) {
-	if len(providers) == 0 {
-		llm.defaultProvider.ResetContext()
-	}
-
-	for _, provider := range providers {
-		if _, ok := llm.providers[provider]; ok {
-			llm.providers[provider].ResetContext()
-		}
+func (llm *LlmAdapter) ResetContext(threadIds ...*ThreadId) {
+	for _, thread := range threadIds {
+		thread.provider.ResetContext(thread)
 	}
 }
 
@@ -120,14 +113,6 @@ func (llm LlmAdapter) DefaultModel() string {
 	return llm.defaultModel
 }
 
-func (llm LlmAdapter) ApiKey() string {
-	return llm.apiKey
-}
-
 func (llm LlmAdapter) HttpClient() *http.Client {
 	return llm.httpClient
-}
-
-func (llm LlmAdapter) SaveContext() bool {
-	return llm.saveContext
 }

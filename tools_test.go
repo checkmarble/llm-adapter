@@ -22,6 +22,7 @@ func TestToolCalled(t *testing.T) {
 	}))
 
 	resp := Response[struct{}]{
+		ThreadId: &ThreadId{},
 		InnerResponse: InnerResponse{
 			Candidates: []ResponseCandidate{{
 				ToolCalls: []ResponseToolCall{
@@ -68,6 +69,7 @@ func TestToolNotCalled(t *testing.T) {
 	}))
 
 	resp := Response[struct{}]{
+		ThreadId: &ThreadId{},
 		InnerResponse: InnerResponse{
 			Candidates: []ResponseCandidate{{
 				ToolCalls: []ResponseToolCall{
@@ -102,6 +104,7 @@ func TestToolError(t *testing.T) {
 	}))
 
 	resp := Response[struct{}]{
+		ThreadId: &ThreadId{},
 		InnerResponse: InnerResponse{
 			Candidates: []ResponseCandidate{{
 				ToolCalls: []ResponseToolCall{
@@ -134,6 +137,7 @@ func TestToolWrongArgumentType(t *testing.T) {
 	}))
 
 	resp := Response[struct{}]{
+		ThreadId: &ThreadId{},
 		InnerResponse: InnerResponse{
 			Candidates: []ResponseCandidate{{
 				ToolCalls: []ResponseToolCall{
@@ -177,7 +181,9 @@ func TestToolWithInvalidSelectedCandidate(t *testing.T) {
 		return "called", nil
 	}))
 
-	resp := Response[struct{}]{}
+	resp := Response[struct{}]{
+		ThreadId: &ThreadId{},
+	}
 	req := NewUntypedRequest().FromCandidate(resp, 2).WithToolExecution(tool)
 
 	assert.ErrorContains(t, req.err, "candidate 2 does not exist")

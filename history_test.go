@@ -12,17 +12,19 @@ func TestSaveLoadHistory(t *testing.T) {
 	}
 
 	h := History[message]{
-		history: make([]message, 0),
+		history: make(map[*ThreadId][]message),
 	}
 
-	assert.Len(t, h.Load(), 0)
+	assert.Len(t, h.history, 0)
 
-	h.Save(message{1})
-	h.Save(message{2})
-	h.Save(message{3})
+	threadId := &ThreadId{}
 
-	assert.Len(t, h.Load(), 3)
-	assert.ElementsMatch(t, h.Load(), []message{{1}, {2}, {3}})
+	h.Save(threadId, message{1})
+	h.Save(threadId, message{2})
+	h.Save(threadId, message{3})
+
+	assert.Len(t, h.Load(threadId), 3)
+	assert.ElementsMatch(t, h.Load(threadId), []message{{1}, {2}, {3}})
 }
 func TestClearHistory(t *testing.T) {
 	type message struct {
@@ -30,19 +32,21 @@ func TestClearHistory(t *testing.T) {
 	}
 
 	h := History[message]{
-		history: make([]message, 0),
+		history: make(map[*ThreadId][]message),
 	}
 
-	assert.Len(t, h.Load(), 0)
+	threadId := &ThreadId{}
 
-	h.Save(message{1})
-	h.Save(message{2})
-	h.Save(message{3})
+	assert.Len(t, h.Load(threadId), 0)
 
-	assert.Len(t, h.Load(), 3)
-	assert.ElementsMatch(t, h.Load(), []message{{1}, {2}, {3}})
+	h.Save(threadId, message{1})
+	h.Save(threadId, message{2})
+	h.Save(threadId, message{3})
 
-	h.Clear()
+	assert.Len(t, h.Load(threadId), 3)
+	assert.ElementsMatch(t, h.Load(threadId), []message{{1}, {2}, {3}})
 
-	assert.Len(t, h.Load(), 0)
+	h.Clear(threadId)
+
+	assert.Len(t, h.Load(threadId), 0)
 }

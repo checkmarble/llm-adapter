@@ -7,10 +7,6 @@ import "net/http"
 type Adapter interface {
 	// DefaultModel returns the default model name configured for the adapter.
 	DefaultModel() string
-	// ApiKey returns the API key configured for the adapter.
-	ApiKey() string
-	// SaveContext indicates whether the conversation context (history) should be saved.
-	SaveContext() bool
 	// HttpClient returns the *http.Client instance used for making HTTP requests.
 	HttpClient() *http.Client
 }

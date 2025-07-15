@@ -1,14 +1,34 @@
 package aistudio
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 
 	llmadapter "github.com/checkmarble/marble-llm-adapter"
+	"github.com/h2non/gock"
 	"github.com/invopop/jsonschema"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/genai"
 )
+
+const aistudioResponse = `{
+	"responseId": "theid",
+	"modelVersion": "themodel",
+	"candidates": [
+		{
+			"finishReason": "STOP",
+				"content": {
+				"role": "model",
+				"parts": [
+					{ "text": "{\"reply\":\"The JSON response from the provider.\"}" }
+				]
+			}
+		}
+	],
+	"createTime": "2025-07-13T16:20:00Z"
+}`
 
 func TestRequestAdapter(t *testing.T) {
 	llm, _ := llmadapter.New()
@@ -176,4 +196,38 @@ func TestRequestAdapter(t *testing.T) {
 		assert.NotNil(t, cfg.TopK)
 		assert.Equal(t, float32(0.2), *cfg.TopK)
 	})
+}
+
+func TestSkipHistory(t *testing.T) {
+	defer gock.Off()
+
+	httpClient := &http.Client{}
+	provider, _ := New(WithBackend(genai.BackendVertexAI), WithLocation("location"), WithProject("project"))
+	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithDefaultModel("themodel"), llmadapter.WithHttpClient(httpClient))
+
+	gock.InterceptClient(httpClient)
+
+	gock.New("https://location-aiplatform.googleapis.com").
+		Post("/v1beta1/projects/project/locations/location/publishers/google/models/themodel:generateContent").
+		Persist().
+		Reply(http.StatusOK).
+		SetHeader("content-type", "application/json").
+		BodyString(aistudioResponse)
+
+	resp, _ := llmadapter.NewUntypedRequest().CreateThread().WithInstruction("system text").Do(t.Context(), llm)
+	threadId := resp.ThreadId
+
+	assert.Len(t, provider.history.Load(threadId), 1)
+
+	llmadapter.NewUntypedRequest().InThread(threadId).WithInstruction("system text").Do(t.Context(), llm)
+
+	assert.Len(t, provider.history.Load(threadId), 2)
+
+	resp, _ = llmadapter.NewUntypedRequest().InThread(threadId).WithInstruction("system text").SkipSaveInput().Do(t.Context(), llm)
+
+	assert.Len(t, provider.history.Load(resp.ThreadId), 2)
+
+	resp.Candidates[0].SelectCandidate()
+
+	assert.Len(t, provider.history.Load(threadId), 3)
 }

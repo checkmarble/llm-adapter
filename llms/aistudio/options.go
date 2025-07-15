@@ -13,6 +13,12 @@ func WithBackend(backend genai.Backend) opt {
 	}
 }
 
+func WithApiKey(apiKey string) opt {
+	return func(p *AiStudio) {
+		p.apiKey = apiKey
+	}
+}
+
 // WithProject defines the Google Cloud Platform project to use to connect to VertexAI.
 //
 // It is only taken into account when using the VertexAI backend.

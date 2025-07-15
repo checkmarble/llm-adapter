@@ -19,7 +19,12 @@ type Output struct {
 func main() {
 	ctx := context.Background()
 
-	provider, err := aistudio.New(aistudio.WithBackend(genai.BackendVertexAI), aistudio.WithProject(os.Getenv("GOOGLE_CLOUD_PROJECT")), aistudio.WithLocation("europe-west1"))
+	provider, err := aistudio.New(
+		aistudio.WithBackend(genai.BackendVertexAI),
+		aistudio.WithProject(os.Getenv("GOOGLE_CLOUD_PROJECT")),
+		aistudio.WithLocation("europe-west1"),
+		aistudio.WithApiKey(os.Getenv("LLM_API_KEY")),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -27,18 +32,15 @@ func main() {
 	llm, err := llmadapter.New(
 		llmadapter.WithProvider("vertex", provider),
 		llmadapter.WithDefaultModel("gemini-2.5-pro"),
-		llmadapter.WithApiKey(os.Getenv("LLM_API_KEY")),
-		llmadapter.WithSaveContext(),
 	)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	systemPrompt, _ := os.Open("prompts/system.txt")
-
 	resp1, err := llmadapter.NewRequest[Output]().
-		WithInstructionReader(systemPrompt).
+		CreateThread().
+		WithInstructionFiles("prompts/system.txt").
 		WithText(llmadapter.RoleUser, "Hello, my name is Bob!").
 		Do(ctx, llm)
 
@@ -61,7 +63,7 @@ func main() {
 
 	fmt.Println(resp2.Get(0))
 
-	llm.ResetContext()
+	llm.ResetContext(resp1.ThreadId)
 
 	type WeatherToolParams struct {
 		Location string `json:"location" jsonschema_description:"The location for which to retrieve the weather forecast"`
@@ -76,6 +78,7 @@ func main() {
 	}
 
 	resp3, err := llmadapter.NewUntypedRequest().
+		CreateThread().
 		FromCandidate(resp2, 0).
 		WithText(llmadapter.RoleUser, "Tell me the weather in Paris.").
 		WithTools(weatherTool).

@@ -1,8 +1,11 @@
 package llmadapter
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
+	"os"
 	"reflect"
 	"strings"
 
@@ -59,10 +62,18 @@ type Message struct {
 // innerRequest represents the actual request to be sent to the provider, before
 // being adapted for it.
 type innerRequest struct {
+	ThreadId       *ThreadId
+	SkipSaveInput  bool
+	SkipSaveOutput bool
+
 	Model          *string
 	Messages       []Message
 	ResponseSchema *jsonschema.Schema
 	Tools          map[string]internal.Tool
+
+	SchemaName        string
+	SchemaDescription string
+	SchemaOverride    *jsonschema.Schema
 
 	MaxTokens     *int
 	MaxCandidates *int
@@ -84,9 +95,10 @@ type innerRequest struct {
 type Request[T any] struct {
 	innerRequest
 
-	provider   *string
-	respondsTo *ResponseCandidate
-	err        error
+	provider        *string
+	createNewThread bool
+	respondsTo      *ResponseCandidate
+	err             error
 }
 
 // NewUntypedRequest is a helper method to create a `Request` which will be a
@@ -145,12 +157,25 @@ func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*Response[T], erro
 		return nil, err
 	}
 
+	if r.createNewThread {
+		r.ThreadId = &ThreadId{
+			provider: provider,
+		}
+	}
+
+	if r.ThreadId != nil && r.ThreadId.provider != provider {
+		return nil, errors.New("thread was not produced by provider")
+	}
+
 	resp, err := provider.ChatCompletion(ctx, llm, r)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Response[T]{*resp}, nil
+	return &Response[T]{
+		InnerResponse: *resp,
+		ThreadId:      r.ThreadId,
+	}, nil
 }
 
 func (r Request[T]) WithProvider(name string) Request[T] {
@@ -159,11 +184,28 @@ func (r Request[T]) WithProvider(name string) Request[T] {
 	return r
 }
 
+func (r Request[T]) CreateThread() Request[T] {
+	r.createNewThread = true
+
+	return r
+}
+
+func (r Request[T]) InThread(threadId *ThreadId) Request[T] {
+	if threadId == nil {
+		r.err = errors.CombineErrors(r.err, errors.New("cannot continue a nil thread"))
+		return r
+	}
+
+	r.ThreadId = threadId
+
+	return r
+}
+
 // FromCandidate selects a candidate/choice from a previous response as the base
 // for this Request.
 //
 // Selecting a candidate will have two effects:
-//   - Adding the candidate to the history (if it is enabled).
+//   - Adding the candidate to the history (if the request was in a thread)
 //   - Using this response tool calls as a basis for tool responses, if applicable.
 //
 // Example usage:
@@ -173,6 +215,8 @@ func (r Request[T]) WithProvider(name string) Request[T] {
 //		WithText(llmadapter.RoleUser, "How are you today?").
 //		Do(ctx, llm)
 func (r Request[T]) FromCandidate(c Candidater, idx int) Request[T] {
+	r.ThreadId = c.Thread()
+
 	candidate, err := c.Candidate(idx)
 	if err != nil {
 		r.err = errors.CombineErrors(r.err, err)
@@ -181,6 +225,18 @@ func (r Request[T]) FromCandidate(c Candidater, idx int) Request[T] {
 
 	r.respondsTo = candidate
 	candidate.SelectCandidate()
+
+	return r
+}
+
+func (r Request[T]) SkipSaveInput() Request[T] {
+	r.innerRequest.SkipSaveInput = true
+
+	return r
+}
+
+func (r Request[T]) SkipSaveOutput() Request[T] {
+	r.innerRequest.SkipSaveOutput = true
 
 	return r
 }
@@ -222,6 +278,28 @@ func (r Request[T]) WithInstructionReader(parts ...io.Reader) Request[T] {
 	return r
 }
 
+func (r Request[T]) WithInstructionFiles(files ...string) Request[T] {
+	parts := make([]io.Reader, len(files))
+
+	for idx, path := range files {
+		f, err := os.Open(path)
+		if err != nil {
+			r.err = errors.CombineErrors(r.err, err)
+			continue
+		}
+
+		parts[idx] = f
+	}
+
+	r.Messages = append(r.Messages, Message{
+		Type:  TypeText,
+		Role:  RoleSystem,
+		Parts: parts,
+	})
+
+	return r
+}
+
 // WithText adds a text message to the Request.
 //
 // Each provided `string` will be added as a discrete `part` in the message. The
@@ -245,6 +323,30 @@ func (r Request[T]) WithTextReader(role MessageRole, parts ...io.Reader) Request
 		Role:  role,
 		Parts: parts,
 	})
+
+	return r
+}
+
+func (r Request[T]) WithJson(role MessageRole, data any) Request[T] {
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(data); err != nil {
+		r.err = errors.CombineErrors(r.err, err)
+		return r
+	}
+
+	return r.WithText(role, buf.String())
+}
+
+func (r Request[T]) WithSchemaDescription(name, description string) Request[T] {
+	r.SchemaName = name
+	r.SchemaDescription = description
+
+	return r
+}
+
+func (r Request[T]) OverrideResponseSchema(schema jsonschema.Schema) Request[T] {
+	r.SchemaOverride = &schema
 
 	return r
 }
@@ -294,6 +396,10 @@ func (r Request[T]) withToolResponse(tool ResponseToolCall, parts string) Reques
 func (r Request[T]) WithToolExecution(tools ...internal.Tool) Request[T] {
 	if r.respondsTo == nil {
 		r.err = errors.CombineErrors(r.err, errors.Newf("cannot execute tools without selecting a response candidate, call FromCandidate() first"))
+		return r
+	}
+	if r.ThreadId == nil {
+		r.err = errors.CombineErrors(r.err, errors.New("cannot execute tools without history, request must be in a thread"))
 		return r
 	}
 

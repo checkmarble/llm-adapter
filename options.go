@@ -36,29 +36,6 @@ func WithDefaultModel(model string) llmOption {
 	}
 }
 
-// WithApiKey sets an API key to use for every request to the provider. Note
-// that not all providers support API key authentication and a given provider
-// will only use this if it requires it or ignore it otherwise.
-//
-// For provider needing specific authentication, an specific option will be
-// available on the provider itself.
-func WithApiKey(key string) llmOption {
-	return func(llm *LlmAdapter) {
-		llm.apiKey = key
-	}
-}
-
-// WithSaveContext enables history accumulation.
-//
-// When enabled, any messages sent to and received from the provider will be
-// recorded to be reused in subsequent requests. If this is not called, every
-// request to the provider will have a blank context.
-func WithSaveContext() llmOption {
-	return func(llm *LlmAdapter) {
-		llm.saveContext = true
-	}
-}
-
 // WithHttpClient sets a custom HTTP clients to be used.
 //
 // If a provider does not support overriding the HTTP client, this will be

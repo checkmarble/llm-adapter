@@ -42,8 +42,8 @@ func TestOpenAiRequest(t *testing.T) {
 		Name string `json:"name" jsonschema_description:"My name"`
 	}
 
-	provider, _ := openai.New()
-	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithApiKey("apikey"))
+	provider, _ := openai.New(openai.WithApiKey("apikey"))
+	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider))
 
 	req := llmadapter.NewRequest[Output]().
 		WithModel("themodel").

@@ -14,12 +14,10 @@ import (
 func main() {
 	ctx := context.Background()
 
-	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendGeminiAPI))
+	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendGeminiAPI), aistudio.WithApiKey(os.Getenv("LLM_API_KEY")))
 	llm, _ := llmadapter.New(
 		llmadapter.WithProvider("vertex", provider),
 		llmadapter.WithDefaultModel("gemini-2.5-flash"),
-		llmadapter.WithApiKey(os.Getenv("LLM_API_KEY")),
-		llmadapter.WithSaveContext(),
 	)
 
 	resp, _ := llmadapter.NewUntypedRequest().

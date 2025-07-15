@@ -70,48 +70,26 @@ func TestProviderHistory(t *testing.T) {
 	llm, _ := New(
 		WithProvider("provider1", provider1),
 		WithProvider("provider2", provider2),
-		WithSaveContext(),
 	)
 
 	provider1.On("ChatCompletion", mock.Anything, llm, mock.Anything).Return(MockMessage{"Hello, world!"}, nil).Once()
 	provider2.On("ChatCompletion", mock.Anything, llm, mock.Anything).Return(MockMessage{"Hello, world!"}, nil)
 
-	resp1, _ := NewUntypedRequest().WithText(RoleUser, "").Do(t.Context(), llm)
+	resp1, _ := NewUntypedRequest().CreateThread().WithText(RoleUser, "First text").Do(t.Context(), llm)
 
-	assert.Len(t, provider1.History.Load(), 0)
-	assert.Len(t, provider2.History.Load(), 0)
+	assert.Len(t, provider1.History.history, 1)
 
 	provider1.On("ChatCompletion", mock.Anything, llm, mock.Anything).Return(MockMessage{"Hello, world 2!"}, nil).Once()
 
-	resp2, _ := NewUntypedRequest().FromCandidate(resp1, 0).Do(t.Context(), llm)
+	resp2, _ := NewUntypedRequest().FromCandidate(resp1, 0).WithText(RoleUser, "Other message").Do(t.Context(), llm)
 
-	assert.Len(t, provider1.History.Load(), 1)
-	assert.Len(t, provider2.History.Load(), 0)
+	assert.Len(t, provider1.History.Load(resp2.ThreadId), 3)
+	assert.ElementsMatch(t, provider1.History.Load(resp2.ThreadId), []MockMessage{{"First text"}, {"Hello, world!"}, {"Other message"}})
+	assert.Len(t, provider2.History.history, 0)
 
-	provider1.On("ChatCompletion", mock.Anything, llm, mock.Anything).Return(MockMessage{"Hello, world 3!"}, nil).Once()
+	_, err := NewUntypedRequest().WithProvider("provider2").InThread(resp2.ThreadId).Do(t.Context(), llm)
 
-	_, _ = NewUntypedRequest().FromCandidate(resp2, 0).Do(t.Context(), llm)
-
-	assert.Len(t, provider1.History.Load(), 2)
-	assert.ElementsMatch(t, provider1.History.Load(), []MockMessage{{"Hello, world!"}, {"Hello, world 2!"}})
-	assert.Len(t, provider2.History.Load(), 0)
-
-	resp4, _ := NewUntypedRequest().WithProvider("provider2").Do(t.Context(), llm)
-	cand, _ := resp4.Candidate(0)
-	cand.SelectCandidate()
-
-	assert.Len(t, provider1.History.Load(), 2)
-	assert.Len(t, provider2.History.Load(), 1)
-
-	llm.ResetContext("provider2")
-
-	assert.Len(t, provider1.History.Load(), 2)
-	assert.Len(t, provider2.History.Load(), 0)
-
-	llm.ResetContext()
-
-	assert.Len(t, provider1.History.Load(), 0)
-	assert.Len(t, provider2.History.Load(), 0)
+	assert.NotNil(t, err)
 }
 
 func TestGetDefaultProvider(t *testing.T) {

@@ -11,6 +11,12 @@ func WithBaseUrl(url string) opt {
 	}
 }
 
+func WithApiKey(apiKey string) opt {
+	return func(p *OpenAi) {
+		p.apiKey = apiKey
+	}
+}
+
 func WithDefaultModel(model string) opt {
 	return func(p *OpenAi) {
 		p.model = &model

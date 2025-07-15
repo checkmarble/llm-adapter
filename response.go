@@ -21,6 +21,7 @@ const (
 type Candidater interface {
 	NumCandidates() int
 	Candidate(int) (*ResponseCandidate, error)
+	Thread() *ThreadId
 }
 
 // InnerResponse is a response from a provider.
@@ -37,6 +38,8 @@ type ResponseCandidate struct {
 	FinishReason FinishReason
 	ToolCalls    []ResponseToolCall
 	Grounding    *ResponseGrounding
+	Thoughts     string
+
 	// SelectCandidate is a callback that is called when a candidate is
 	// "selected" (when the conversation will continue from it).
 	SelectCandidate func()
@@ -66,6 +69,8 @@ type ResponseToolCall struct {
 // and provide typed methods to unmarshal the response, if necessary.
 type Response[T any] struct {
 	InnerResponse
+
+	ThreadId *ThreadId
 }
 
 func (r Response[T]) NumCandidates() int {
@@ -78,6 +83,10 @@ func (r Response[T]) Candidate(idx int) (*ResponseCandidate, error) {
 	}
 
 	return &r.Candidates[idx], nil
+}
+
+func (r Response[T]) Thread() *ThreadId {
+	return r.ThreadId
 }
 
 // Get will return the deserialized output for a candidate.

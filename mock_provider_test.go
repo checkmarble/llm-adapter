@@ -2,6 +2,7 @@ package llmadapter
 
 import (
 	"context"
+	"io"
 	"reflect"
 
 	"github.com/checkmarble/marble-llm-adapter/internal"
@@ -25,7 +26,7 @@ func (*MockProvider) RequestOptionsType() reflect.Type {
 func NewMockProvider() *MockProvider {
 	return &MockProvider{
 		History: History[MockMessage]{
-			history: make([]MockMessage, 0),
+			history: make(map[*ThreadId][]MockMessage, 0),
 		},
 	}
 }
@@ -34,8 +35,8 @@ func (p *MockProvider) Init(llm internal.Adapter) error {
 	return p.Called(llm).Error(0)
 }
 
-func (p *MockProvider) ResetContext() {
-	p.History.Clear()
+func (p *MockProvider) ResetContext(threadId *ThreadId) {
+	p.History.Clear(threadId)
 }
 
 func (p *MockProvider) ChatCompletion(ctx context.Context, llm internal.Adapter, requester Requester) (*InnerResponse, error) {
@@ -45,6 +46,21 @@ func (p *MockProvider) ChatCompletion(ctx context.Context, llm internal.Adapter,
 		return nil, args.Error(1)
 	}
 
+	req := requester.ToRequest()
+
+	for _, msg := range req.Messages {
+		for _, part := range msg.Parts {
+			f, err := io.ReadAll(part)
+			if err != nil {
+				return nil, err
+			}
+
+			if req.ThreadId != nil {
+				p.History.Save(req.ThreadId, MockMessage{string(f)})
+			}
+		}
+	}
+
 	msg := args.Get(0).(MockMessage)
 
 	return &InnerResponse{
@@ -52,7 +68,9 @@ func (p *MockProvider) ChatCompletion(ctx context.Context, llm internal.Adapter,
 			{
 				Text: msg.Text,
 				SelectCandidate: func() {
-					p.History.Save(msg)
+					if req.ThreadId != nil {
+						p.History.Save(req.ThreadId, msg)
+					}
 				},
 			},
 		},
