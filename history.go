@@ -37,6 +37,24 @@ func (h *History[T]) Load(threadId *ThreadId) []T {
 // part of the history.
 func (h *History[T]) Clear(threadId *ThreadId) {
 	if h.history != nil {
-		delete(h.history, threadId)
+		h.history[threadId] = make([]T, 0)
 	}
+}
+
+func (h *History[T]) CopyThread(threadId *ThreadId) *ThreadId {
+	if threadId == nil {
+		return nil
+	}
+	if _, ok := h.history[threadId]; ok {
+		return nil
+	}
+
+	newThreadId := &ThreadId{provider: threadId.provider}
+	newHistory := make([]T, len(h.history[threadId]))
+
+	copy(newHistory, h.history[threadId])
+
+	h.history[newThreadId] = newHistory
+
+	return newThreadId
 }

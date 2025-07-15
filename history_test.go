@@ -26,6 +26,7 @@ func TestSaveLoadHistory(t *testing.T) {
 	assert.Len(t, h.Load(threadId), 3)
 	assert.ElementsMatch(t, h.Load(threadId), []message{{1}, {2}, {3}})
 }
+
 func TestClearHistory(t *testing.T) {
 	type message struct {
 		Number int
@@ -49,4 +50,24 @@ func TestClearHistory(t *testing.T) {
 	h.Clear(threadId)
 
 	assert.Len(t, h.Load(threadId), 0)
+}
+
+func TestCopyThread(t *testing.T) {
+	h := History[int]{
+		history: make(map[*ThreadId][]int),
+	}
+
+	t1 := &ThreadId{}
+
+	h.Save(t1, 1)
+	h.Save(t1, 2)
+
+	assert.Len(t, h.Load(t1), 2)
+
+	t2 := h.CopyThread(t1)
+
+	h.Save(t2, 3)
+
+	assert.Len(t, h.Load(t1), 2)
+	assert.Len(t, h.Load(t2), 1)
 }

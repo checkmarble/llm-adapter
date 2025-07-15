@@ -63,7 +63,7 @@ func main() {
 
 	fmt.Println(resp2.Get(0))
 
-	llm.ResetContext(resp1.ThreadId)
+	resp1.ThreadId.Clear()
 
 	type WeatherToolParams struct {
 		Location string `json:"location" jsonschema_description:"The location for which to retrieve the weather forecast"`

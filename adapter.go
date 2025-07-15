@@ -22,7 +22,9 @@ type Llm interface {
 	Init(llm internal.Adapter) error
 	// ResetContext clears the conversation history for the specific LLM provider.
 	// This allows starting a new conversation without re-initializing the provider.
-	ResetContext(*ThreadId)
+	ResetThread(*ThreadId)
+	// CopyThread copies all history from the provided thread into a new, discrete one.
+	CopyThread(*ThreadId) *ThreadId
 	// ChatCompletion sends a chat completion request to the LLM provider.
 	// It takes a context, the adapter's internal configuration, and a Requester
 	// to retrieve the request.
@@ -39,10 +41,8 @@ type LlmAdapter struct {
 	providers       map[string]Llm
 	defaultProvider Llm
 
-	httpClient *http.Client
-
+	httpClient   *http.Client
 	defaultModel string
-	saveContext  bool
 }
 
 // New creates a new LlmAdapter with the given options.
@@ -78,11 +78,11 @@ func New(opts ...llmOption) (*LlmAdapter, error) {
 // new adapter instance. This also clears the systems instructions.
 // If called without arguments, will clear the history of the default provider,
 // otherwise, it accepts variadic provider names for which to clear the history.
-func (llm *LlmAdapter) ResetContext(threadIds ...*ThreadId) {
-	for _, thread := range threadIds {
-		thread.provider.ResetContext(thread)
-	}
-}
+// func (llm *LlmAdapter) ResetThreads(threadIds ...*ThreadId) {
+// 	for _, thread := range threadIds {
+// 		thread.provider.ResetThread(thread)
+// 	}
+// }
 
 // GetProvider retrieves an LLM provider based on the given provider name.
 // It accepts the provider requested in a specific request, which will override

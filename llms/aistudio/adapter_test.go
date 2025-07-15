@@ -219,7 +219,7 @@ func TestSkipHistory(t *testing.T) {
 
 	assert.Len(t, provider.history.Load(threadId), 1)
 
-	llmadapter.NewUntypedRequest().InThread(threadId).WithInstruction("system text").Do(t.Context(), llm)
+	_, _ = llmadapter.NewUntypedRequest().InThread(threadId).WithInstruction("system text").Do(t.Context(), llm)
 
 	assert.Len(t, provider.history.Load(threadId), 2)
 

@@ -35,8 +35,12 @@ func (p *MockProvider) Init(llm internal.Adapter) error {
 	return p.Called(llm).Error(0)
 }
 
-func (p *MockProvider) ResetContext(threadId *ThreadId) {
+func (p *MockProvider) ResetThread(threadId *ThreadId) {
 	p.History.Clear(threadId)
+}
+
+func (p *MockProvider) CopyThread(threadId *ThreadId) *ThreadId {
+	return p.History.CopyThread(threadId)
 }
 
 func (p *MockProvider) ChatCompletion(ctx context.Context, llm internal.Adapter, requester Requester) (*InnerResponse, error) {

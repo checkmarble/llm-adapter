@@ -67,8 +67,12 @@ func (p *AiStudio) Init(adapter internal.Adapter) error {
 	return nil
 }
 
-func (p *AiStudio) ResetContext(threadId *llmadapter.ThreadId) {
+func (p *AiStudio) ResetThread(threadId *llmadapter.ThreadId) {
 	p.history.Clear(threadId)
+}
+
+func (p *AiStudio) CopyThread(threadId *llmadapter.ThreadId) *llmadapter.ThreadId {
+	return p.history.CopyThread(threadId)
 }
 
 func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
@@ -143,7 +147,9 @@ Messages:
 
 		for _, part := range msg.Parts {
 			if seeker, ok := part.(io.ReadSeeker); ok {
-				seeker.Seek(0, 0)
+				if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+					return nil, nil, err
+				}
 			}
 
 			buf, err := io.ReadAll(part)
