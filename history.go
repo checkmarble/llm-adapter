@@ -1,10 +1,13 @@
 package llmadapter
 
+import "sync"
+
 // History manages the conversation context by storing a sequence of messages.
 // It is generic in type `T`, where `T` represents the specific message format
 // required by a particular LLM provider (e.g., OpenAI's Message or AIStudio's ChatMessage).
 // This allows the adapter to maintain conversation state across multiple requests.
 type History[T any] struct {
+	mtx     sync.Mutex
 	history map[*ThreadId][]T
 }
 
@@ -12,6 +15,9 @@ type History[T any] struct {
 // The `message` parameter should be of the generic type `T`, matching the
 // content representation expected by the LLM provider.
 func (h *History[T]) Save(threadId *ThreadId, message T) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
 	if h.history == nil {
 		h.history = make(map[*ThreadId][]T)
 	}
@@ -26,6 +32,9 @@ func (h *History[T]) Save(threadId *ThreadId, message T) {
 // This history can then be included in subsequent requests to the LLM
 // to maintain conversational context.
 func (h *History[T]) Load(threadId *ThreadId) []T {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
 	if h.history == nil {
 		return []T{}
 	}
@@ -36,15 +45,31 @@ func (h *History[T]) Load(threadId *ThreadId) []T {
 // new conversation. This also clears any system instructions that were
 // part of the history.
 func (h *History[T]) Clear(threadId *ThreadId) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
 	if h.history != nil {
 		h.history[threadId] = make([]T, 0)
 	}
 }
 
-func (h *History[T]) CopyThread(threadId *ThreadId) *ThreadId {
+func (h *History[T]) Close(threadId *ThreadId) {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	if h.history != nil {
+		delete(h.history, threadId)
+	}
+}
+
+func (h *History[T]) Copy(threadId *ThreadId) *ThreadId {
 	if threadId == nil {
 		return nil
 	}
+
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
 	if _, ok := h.history[threadId]; ok {
 		return nil
 	}

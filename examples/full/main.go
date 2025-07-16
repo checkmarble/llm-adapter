@@ -48,6 +48,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	defer resp1.ThreadId.Close()
+
 	out, _ := resp1.Get(0)
 
 	fmt.Println("Reply:", out.Reply, "Random:", out.Random)
@@ -87,6 +89,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	defer resp3.ThreadId.Close()
 
 	resp4, err := llmadapter.NewUntypedRequest().
 		FromCandidate(resp3, 0).

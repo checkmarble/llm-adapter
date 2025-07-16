@@ -119,6 +119,8 @@ When using thread, by default, both inputs and outputs are saved. To opt out of 
 
 Note that starting a response from a previous candidate automatically adds that response to the relevant thread history.
 
+Threads should be closed after you are done using them to clean associated resources. We recomment deferring a call to `(*ThreadId).Close() after you create it. If you do not, threads will live on until the whole adapter is garbage collected.
+
 #### Tool calling
 
 Tools can be defined in a type-safe manner by using the `NewTool` function and refering to it in various requests. A function consists of a name, a description and a callback taking an arbitrary type as argument and returning `(string, error)`.

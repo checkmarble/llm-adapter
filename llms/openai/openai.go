@@ -24,7 +24,7 @@ type OpenAi struct {
 	model   *string
 }
 
-func (OpenAi) RequestOptionsType() reflect.Type {
+func (*OpenAi) RequestOptionsType() reflect.Type {
 	return nil
 }
 
@@ -60,7 +60,11 @@ func (p *OpenAi) ResetThread(threadId *llmadapter.ThreadId) {
 }
 
 func (p *OpenAi) CopyThread(threadId *llmadapter.ThreadId) *llmadapter.ThreadId {
-	return p.history.CopyThread(threadId)
+	return p.history.Copy(threadId)
+}
+
+func (p *OpenAi) CloseThread(threadId *llmadapter.ThreadId) {
+	p.history.Close(threadId)
 }
 
 func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {

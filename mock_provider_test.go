@@ -40,7 +40,11 @@ func (p *MockProvider) ResetThread(threadId *ThreadId) {
 }
 
 func (p *MockProvider) CopyThread(threadId *ThreadId) *ThreadId {
-	return p.History.CopyThread(threadId)
+	return p.History.Copy(threadId)
+}
+
+func (p *MockProvider) CloseThread(threadId *ThreadId) {
+	p.History.Close(threadId)
 }
 
 func (p *MockProvider) ChatCompletion(ctx context.Context, llm internal.Adapter, requester Requester) (*InnerResponse, error) {

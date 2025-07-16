@@ -25,6 +25,8 @@ type Llm interface {
 	ResetThread(*ThreadId)
 	// CopyThread copies all history from the provided thread into a new, discrete one.
 	CopyThread(*ThreadId) *ThreadId
+	// CloseThread deletes a thread and associated resources.
+	CloseThread(*ThreadId)
 	// ChatCompletion sends a chat completion request to the LLM provider.
 	// It takes a context, the adapter's internal configuration, and a Requester
 	// to retrieve the request.

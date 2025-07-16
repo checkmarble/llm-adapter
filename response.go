@@ -2,6 +2,7 @@ package llmadapter
 
 import (
 	"encoding/json"
+	"iter"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -75,6 +76,16 @@ type Response[T any] struct {
 
 func (r Response[T]) NumCandidates() int {
 	return len(r.Candidates)
+}
+
+func (r Response[T]) Iterator() iter.Seq2[T, error] {
+	return func(yield func(T, error) bool) {
+		for idx := range r.Candidates {
+			if !yield(r.Get(idx)) {
+				return
+			}
+		}
+	}
 }
 
 func (r Response[T]) Candidate(idx int) (*ResponseCandidate, error) {

@@ -52,7 +52,7 @@ func TestClearHistory(t *testing.T) {
 	assert.Len(t, h.Load(threadId), 0)
 }
 
-func TestCopyThread(t *testing.T) {
+func TestCopyCloseThread(t *testing.T) {
 	h := History[int]{
 		history: make(map[*ThreadId][]int),
 	}
@@ -64,7 +64,7 @@ func TestCopyThread(t *testing.T) {
 
 	assert.Len(t, h.Load(t1), 2)
 
-	t2 := h.CopyThread(t1)
+	t2 := h.Copy(t1)
 
 	h.Save(t2, 3)
 

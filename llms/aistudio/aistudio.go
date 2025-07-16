@@ -24,7 +24,7 @@ type AiStudio struct {
 	model    *string
 }
 
-func (AiStudio) RequestOptionsType() reflect.Type {
+func (*AiStudio) RequestOptionsType() reflect.Type {
 	return reflect.TypeFor[RequestOptions]()
 }
 
@@ -72,7 +72,11 @@ func (p *AiStudio) ResetThread(threadId *llmadapter.ThreadId) {
 }
 
 func (p *AiStudio) CopyThread(threadId *llmadapter.ThreadId) *llmadapter.ThreadId {
-	return p.history.CopyThread(threadId)
+	return p.history.Copy(threadId)
+}
+
+func (p *AiStudio) CloseThread(threadId *llmadapter.ThreadId) {
+	p.history.Close(threadId)
 }
 
 func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
