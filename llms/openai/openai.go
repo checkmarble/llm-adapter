@@ -19,16 +19,18 @@ type OpenAi struct {
 	client  openai.Client
 	history llmadapter.History[openai.ChatCompletionMessageParamUnion]
 
+	RequestHookFunc func(llmadapter.Requester, *openai.ChatCompletionNewParams) error
+
 	baseUrl string
 	apiKey  string
 	model   *string
 }
 
 func (*OpenAi) RequestOptionsType() reflect.Type {
-	return reflect.TypeFor[RequestOptions]()
+	return nil
 }
 
-func New(opts ...opt) (*OpenAi, error) {
+func New(opts ...Opt) (*OpenAi, error) {
 	llm := OpenAi{}
 
 	for _, opt := range opts {
@@ -73,6 +75,12 @@ func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, reque
 		return nil, errors.Wrap(err, "could not adapt request")
 	}
 
+	if p.RequestHookFunc != nil {
+		if err := p.RequestHookFunc(requester, cfg); err != nil {
+			return nil, err
+		}
+	}
+
 	response, err := p.client.Chat.Completions.New(ctx, *cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "LLM provider failed to generate content")
@@ -110,12 +118,6 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 	}
 	if r.TopP != nil {
 		cfg.TopP = openai.Float(*r.TopP)
-	}
-
-	opts := internal.CastProviderOptions[RequestOptions](requester.ProviderRequestOptions(p))
-
-	if err := p.applyExtras(&cfg, opts.Extras); err != nil {
-		return nil, errors.Wrap(err, "could not apply extra parameters")
 	}
 
 	if r.ResponseSchema != nil {
@@ -293,26 +295,4 @@ func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatComple
 	}
 
 	return &resp, nil
-}
-
-func (p *OpenAi) applyExtras(cfg *openai.ChatCompletionNewParams, extras any) error {
-	if extras == nil {
-		return nil
-	}
-
-	extraJson, err := json.Marshal(extras)
-
-	if err != nil {
-		return err
-	}
-
-	var extraMap map[string]any
-
-	if err := json.Unmarshal(extraJson, &extraMap); err != nil {
-		return err
-	}
-
-	cfg.SetExtraFields(extraMap)
-
-	return nil
 }
