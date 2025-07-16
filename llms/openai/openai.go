@@ -25,7 +25,7 @@ type OpenAi struct {
 }
 
 func (*OpenAi) RequestOptionsType() reflect.Type {
-	return nil
+	return reflect.TypeFor[RequestOptions]()
 }
 
 func New(opts ...opt) (*OpenAi, error) {
@@ -110,6 +110,12 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 	}
 	if r.TopP != nil {
 		cfg.TopP = openai.Float(*r.TopP)
+	}
+
+	opts := internal.CastProviderOptions[RequestOptions](requester.ProviderRequestOptions(p))
+
+	if err := p.applyExtras(&cfg, opts.Extras); err != nil {
+		return nil, errors.Wrap(err, "could not apply extra parameters")
 	}
 
 	if r.ResponseSchema != nil {
@@ -287,4 +293,26 @@ func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatComple
 	}
 
 	return &resp, nil
+}
+
+func (p *OpenAi) applyExtras(cfg *openai.ChatCompletionNewParams, extras any) error {
+	if extras == nil {
+		return nil
+	}
+
+	extraJson, err := json.Marshal(extras)
+
+	if err != nil {
+		return err
+	}
+
+	var extraMap map[string]any
+
+	if err := json.Unmarshal(extraJson, &extraMap); err != nil {
+		return err
+	}
+
+	cfg.SetExtraFields(extraMap)
+
+	return nil
 }

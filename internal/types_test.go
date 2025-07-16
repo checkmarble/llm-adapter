@@ -11,13 +11,13 @@ type providerOpts struct {
 	Number int
 }
 
-func (providerOpts) RequestOptionsForProvider() {}
+func (providerOpts) ProviderRequestOptions() {}
 
 type provider2Opts struct {
 	Number int
 }
 
-func (provider2Opts) RequestOptionsForProvider() {}
+func (provider2Opts) ProviderRequestOptions() {}
 
 func TestCastProviderOptions(t *testing.T) {
 	assert.Zero(t, CastProviderOptions[providerOpts](nil))

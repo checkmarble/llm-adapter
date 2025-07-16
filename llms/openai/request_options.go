@@ -1,8 +1,11 @@
-package aistudio
+package openai
+
+type Extras interface {
+	Extras()
+}
 
 type RequestOptions struct {
-	GoogleSearch *bool
-	TopK         *float64
+	Extras Extras
 }
 
 func (RequestOptions) ProviderRequestOptions() {}

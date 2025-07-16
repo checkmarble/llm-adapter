@@ -24,7 +24,7 @@ type mockProvider1Opts struct {
 	Text string
 }
 
-func (mockProvider1Opts) RequestOptionsForProvider() {}
+func (mockProvider1Opts) ProviderRequestOptions() {}
 
 type mockProvider1 struct {
 	MockProvider
@@ -38,7 +38,7 @@ type mockProvider2Opts struct {
 	Number int
 }
 
-func (mockProvider2Opts) RequestOptionsForProvider() {}
+func (mockProvider2Opts) ProviderRequestOptions() {}
 
 type mockProvider2 struct {
 	MockProvider

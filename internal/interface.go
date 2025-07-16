@@ -15,8 +15,8 @@ type Adapter interface {
 // request options structs must implement. This allows for type assertion
 // and reflection to extract provider-specific options from a generic request.
 type ProviderRequestOptions interface {
-	// RequestOptionsForProvider is a dummy method used to satisfy the interface.
+	// ProviderOptions is a dummy method used to satisfy the interface.
 	// It has no functional purpose other than to mark a struct as containing
 	// provider-specific request options.
-	RequestOptionsForProvider()
+	ProviderRequestOptions()
 }
