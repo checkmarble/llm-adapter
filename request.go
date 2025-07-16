@@ -327,6 +327,18 @@ func (r Request[T]) WithTextReader(role MessageRole, parts ...io.Reader) Request
 	return r
 }
 
+func (r Request[T]) WithSerializable(role MessageRole, ser Serializer, input any) Request[T] {
+	var buf bytes.Buffer
+
+	err := ser.Serialize(input, &buf)
+	if err != nil {
+		r.err = errors.CombineErrors(r.err, err)
+		return r
+	}
+
+	return r.WithText(role, buf.String())
+}
+
 func (r Request[T]) WithJson(role MessageRole, data any) Request[T] {
 	var buf bytes.Buffer
 

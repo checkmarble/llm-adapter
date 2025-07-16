@@ -77,7 +77,8 @@ req.
 	WithInstructionFile("/etc/prompt.md").
 	WithText(llmadapter.RoleUser, "user prompt").
 	WithTextReader(llmadapter.RoleUser, strings.NewReader("user prompt")).
-	WithJson(llmadapter.RoleUser, typ) // Any JSON-serializable type
+	WithJson(llmadapter.RoleUser, typ). // Any JSON-serializable type
+	WithSerializable(llmadapter.RoleUser, llmadapter.Serializers.Json, typ) // Use a decoder implementing llmadapter.Serializer
 ````
 
 #### Executing
