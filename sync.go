@@ -38,7 +38,7 @@ func All[T any](ctx context.Context, llm *LlmAdapter, reqs ...Request[T]) []Asyn
 	return responses
 }
 
-func Race[T any](ctx context.Context, llm *LlmAdapter, reqs ...Request[T]) AsyncResponse[T] {
+func Race[T any](ctx context.Context, llm *LlmAdapter, reqs ...Request[T]) (*Response[T], error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -56,23 +56,23 @@ func Race[T any](ctx context.Context, llm *LlmAdapter, reqs ...Request[T]) Async
 		}()
 	}
 
-	errored := 0
+	errs := make([]error, 0, len(reqs))
 
 	for {
 		select {
 		case <-ctx.Done():
-			return AsyncResponse[T]{Error: ctx.Err()}
+			return nil, ctx.Err()
 
-		case value := <-c:
-			switch value.Error {
+		case resp := <-c:
+			switch resp.Error {
 			case nil:
-				return value
+				return resp.Response, nil
 
 			default:
-				errored += 1
+				errs = append(errs, resp.Error)
 
-				if errored == len(reqs) {
-					return AsyncResponse[T]{Error: errors.New("all requests failed")}
+				if len(errs) == len(reqs) {
+					return nil, errors.Wrap(errors.Join(errs...), "all requests failed")
 				}
 			}
 		}

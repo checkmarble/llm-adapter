@@ -92,6 +92,13 @@ resp, err := req.Do(ctx, llm)
 output, err := resp.Get(0)
 ````
 
+A few utilities are available to run multiple requests at the same time:
+
+ - `llmadapter.All[T](context.Context, *llmadapter.LlmAdapter, reqs ...Request[T])` can be used to fire several requests at once, wait for all of them to return and get a slice of results.
+ - `llmadapter.Race[T](context.Context, *llmadapter.LlmAdapter, reqs ...Request[T])` can be used to fire several requests at once, return the first successful response, and cancel the others.
+
+Note that cancelled requests will still incur cost on most providers.
+
 #### Chaining
 
 To conduct a conversation, one candidate must be selected as the basis for the next request.
@@ -120,7 +127,7 @@ When using thread, by default, both inputs and outputs are saved. To opt out of 
 
 Note that starting a response from a previous candidate automatically adds that response to the relevant thread history.
 
-Threads should be closed after you are done using them to clean associated resources. We recomment deferring a call to `(*ThreadId).Close() after you create it. If you do not, threads will live on until the whole adapter is garbage collected.
+Threads should be closed after you are done using them to clean associated resources. We recomment deferring a call to `(*ThreadId).Close()` after you create it. If you do not, threads will live on until the whole adapter is garbage collected.
 
 #### Tool calling
 

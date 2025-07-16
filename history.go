@@ -1,6 +1,8 @@
 package llmadapter
 
-import "sync"
+import (
+	"sync"
+)
 
 // History manages the conversation context by storing a sequence of messages.
 // It is generic in type `T`, where `T` represents the specific message format
