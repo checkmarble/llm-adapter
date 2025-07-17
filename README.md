@@ -77,9 +77,11 @@ req.
 	WithInstructionFile("/etc/prompt.md").
 	WithText(llmadapter.RoleUser, "user prompt").
 	WithTextReader(llmadapter.RoleUser, strings.NewReader("user prompt")).
-	WithJson(llmadapter.RoleUser, typ). // Any JSON-serializable type
-	WithSerializable(llmadapter.RoleUser, llmadapter.Serializers.Json, typ) // Use a decoder implementing llmadapter.Serializer
+	WithJson(llmadapter.RoleUser, data). // Any JSON-serializable type
+	WithSerializable(llmadapter.RoleUser, llmadapter.Serializers.Json, data) // Use a decoder implementing llmadapter.Serializer
 ````
+
+`WithSerializable` accepts any type that fulfills the `Serializable` interface and that can write a arbitrarily-serialized input into an `io.Writer`. The library currently comes with two serializers, `llmadapters.Serializers.Json` and `llmadapter.Serializers.Csv`, but you would write your own.
 
 #### Executing
 
