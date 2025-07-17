@@ -67,6 +67,7 @@ type innerRequest struct {
 	SkipSaveOutput bool
 
 	Model          *string
+	ModelFunc      func(llm Llm, providerName *string) string
 	Messages       []Message
 	ResponseSchema *jsonschema.Schema
 	Tools          map[string]internal.Tool
@@ -155,6 +156,12 @@ func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*Response[T], erro
 	provider, err := llm.GetProvider(r.provider)
 	if err != nil {
 		return nil, err
+	}
+
+	if r.ModelFunc != nil {
+		if m := r.ModelFunc(provider, r.provider); m != "" {
+			r.Model = &m
+		}
 	}
 
 	if r.createNewThread {
@@ -247,6 +254,18 @@ func (r Request[T]) SkipSaveOutput() Request[T] {
 // be used.
 func (r Request[T]) WithModel(model string) Request[T] {
 	r.Model = &model
+
+	return r
+}
+
+// WithModelFunc executes a callback to determine the model to use.
+//
+// Is it useful notably when having multiple provider, to be able to select the
+// model depending on which provider was actually selected to execute the
+// request. The callback is passed the actual instance of the selected provider,
+// as well as its registered name, if applicable.
+func (r Request[T]) WithModelFunc(fn func(provider Llm, providerName *string) string) Request[T] {
+	r.ModelFunc = fn
 
 	return r
 }
