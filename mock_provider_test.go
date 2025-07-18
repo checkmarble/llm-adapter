@@ -15,6 +15,7 @@ type MockMessage struct {
 
 type MockProvider struct {
 	mock.Mock
+	BatchUnsupported
 
 	History History[MockMessage]
 }
@@ -30,6 +31,8 @@ func NewMockProvider() *MockProvider {
 		},
 	}
 }
+
+func (p *MockProvider) SetName(name string) {}
 
 func (p *MockProvider) Init(llm internal.Adapter) error {
 	return p.Called(llm).Error(0)

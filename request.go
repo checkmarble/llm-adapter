@@ -35,6 +35,7 @@ const (
 //
 // Used internally to abstract over request types across packages.
 type Requester interface {
+	Error() error
 	// ToRequest unwraps the actual request.
 	ToRequest() innerRequest
 	// ProviderRequestOptions extracts the provider-specific configuration
@@ -62,6 +63,7 @@ type Message struct {
 // innerRequest represents the actual request to be sent to the provider, before
 // being adapted for it.
 type innerRequest struct {
+	Id             string
 	ThreadId       *ThreadId
 	SkipSaveInput  bool
 	SkipSaveOutput bool
@@ -183,6 +185,12 @@ func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*Response[T], erro
 		InnerResponse: *resp,
 		ThreadId:      r.ThreadId,
 	}, nil
+}
+
+func (r Request[T]) WithId(id string) Request[T] {
+	r.innerRequest.Id = id
+
+	return r
 }
 
 func (r Request[T]) WithProvider(name string) Request[T] {
@@ -502,6 +510,10 @@ func (r Request[T]) WithTopP(topp float64) Request[T] {
 }
 
 // Request[T] implementation of Requester.
+
+func (r Request[T]) Error() error {
+	return r.err
+}
 
 func (r Request[T]) ToRequest() innerRequest {
 	return r.innerRequest

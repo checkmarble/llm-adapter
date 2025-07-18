@@ -17,6 +17,8 @@ func WithDefaultProvider(provider Llm) llmOption {
 // The first one to be registered will become the default, unless a default was
 // already or is defined later with `SetDefaultProvider`.
 func WithProvider(name string, provider Llm) llmOption {
+	provider.SetName(name)
+
 	return func(llm *LlmAdapter) {
 		llm.providers[name] = provider
 

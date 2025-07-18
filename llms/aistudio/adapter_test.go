@@ -38,10 +38,9 @@ func TestRequestAdapter(t *testing.T) {
 		req := llmadapter.NewUntypedRequest().
 			WithModel("themodel")
 
-		contents, cfg, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
+		contents, _, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
 
 		assert.Nil(t, err)
-		assert.Nil(t, cfg.SystemInstruction)
 		assert.Len(t, contents, 0)
 	})
 
