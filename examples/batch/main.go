@@ -27,19 +27,22 @@ func main() {
 		llmadapter.WithDefaultModel("gemini-2.5-flash"),
 	)
 
-	reqs := []llmadapter.Requester{
-		llmadapter.NewUntypedRequest().WithProvider("vertex").WithId("how").WithText(llmadapter.RoleUser, "How are you?"),
-		llmadapter.NewUntypedRequest().WithProvider("vertex").WithId("addition").WithText(llmadapter.RoleUser, "What is 1 + 1?"),
+	reqs := llmadapter.Batch[string]{
+		Requests: []llmadapter.Request[string]{
+			llmadapter.NewUntypedRequest().WithProvider("vertex").WithId("how").WithText(llmadapter.RoleUser, "How are you?"),
+			llmadapter.NewUntypedRequest().WithProvider("vertex").WithId("addition").WithText(llmadapter.RoleUser, "What is 1 + 1?"),
+		},
 	}
 
-	promise, err := llm.SubmitBatch(ctx, "vertex", reqs...)
+	// promise, err := llm.SubmitBatch(ctx, "vertex", []llmadapter.Requester(reqs)...)
+	promise, err := reqs.Batch(ctx, llm, "vertex")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	result := <-promise.Wait(ctx)
+	result, err := promise.Wait(ctx)
 
-	if result.Error != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 

@@ -21,7 +21,7 @@ type BatchPayload struct {
 	Request genai.InlinedRequest `json:"request"`
 }
 
-func (p *AiStudio) SubmitBatch(ctx context.Context, llm internal.Adapter, reqs ...llmadapter.Requester) (*llmadapter.BatchPromise, error) {
+func (p *AiStudio) SubmitBatch(ctx context.Context, llm internal.Adapter, reqs ...llmadapter.Requester) (*llmadapter.UntypedBatchPromise, error) {
 	if p.name == "" {
 		return nil, errors.New("batches can only be created on named providers")
 	}
@@ -31,7 +31,7 @@ func (p *AiStudio) SubmitBatch(ctx context.Context, llm internal.Adapter, reqs .
 		return nil, err
 	}
 
-	req, err := p.uploadFile(ctx, payload)
+	filename, err := p.uploadFile(ctx, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -40,10 +40,10 @@ func (p *AiStudio) SubmitBatch(ctx context.Context, llm internal.Adapter, reqs .
 
 	switch p.backend {
 	case genai.BackendGeminiAPI:
-		src.FileName = req.Filename
+		src.FileName = filename
 	case genai.BackendVertexAI:
 		src.Format = "jsonl"
-		src.GCSURI = []string{req.Filename}
+		src.GCSURI = []string{filename}
 	}
 
 	job, err := p.client.Batches.Create(
@@ -61,7 +61,7 @@ func (p *AiStudio) SubmitBatch(ctx context.Context, llm internal.Adapter, reqs .
 		return nil, err
 	}
 
-	return &llmadapter.BatchPromise{
+	return &llmadapter.UntypedBatchPromise{
 		Provider:     p,
 		ProviderName: p.name,
 		Id:           job.Name,
@@ -117,7 +117,7 @@ func (p *AiStudio) createBatchInput(llm internal.Adapter, requesters ...llmadapt
 	return &buf, nil
 }
 
-func (p *AiStudio) Check(ctx context.Context, pr *llmadapter.BatchPromise) (llmadapter.BatchStatus, error) {
+func (p *AiStudio) Check(ctx context.Context, pr *llmadapter.UntypedBatchPromise) (llmadapter.BatchStatus, error) {
 	job, err := p.client.Batches.Get(ctx, pr.Id, nil)
 	if err != nil {
 		return llmadapter.BatchError, err
@@ -126,7 +126,7 @@ func (p *AiStudio) Check(ctx context.Context, pr *llmadapter.BatchPromise) (llma
 	return adaptJobState(job.State), nil
 }
 
-func (p *AiStudio) Wait(ctx context.Context, pr *llmadapter.BatchPromise) <-chan llmadapter.BatchWaitResponse {
+func (p *AiStudio) Wait(ctx context.Context, pr *llmadapter.UntypedBatchPromise) <-chan llmadapter.BatchWaitResponse {
 	ch := make(chan llmadapter.BatchWaitResponse)
 
 	go func() {
@@ -145,7 +145,9 @@ func (p *AiStudio) Wait(ctx context.Context, pr *llmadapter.BatchPromise) <-chan
 				}
 
 				if !job.EndTime.IsZero() {
-					ch <- llmadapter.BatchWaitResponse{Status: adaptJobState(job.State)}
+					// TODO: get the file from GCS / Files API and build InnerResponses with it
+
+					ch <- llmadapter.BatchWaitResponse{Status: adaptJobState(job.State), Filename: job.Dest.GCSURI}
 					close(ch)
 					return
 				}
@@ -157,9 +159,9 @@ func (p *AiStudio) Wait(ctx context.Context, pr *llmadapter.BatchPromise) <-chan
 
 	return ch
 }
-func (p *AiStudio) uploadFile(ctx context.Context, r io.Reader) (*llmadapter.BatchRequest, error) {
+func (p *AiStudio) uploadFile(ctx context.Context, r io.Reader) (string, error) {
 	if p.name == "" {
-		return nil, errors.New("batches can only be created on named providers")
+		return "", errors.New("batches can only be created on named providers")
 	}
 
 	switch p.backend {
@@ -169,18 +171,15 @@ func (p *AiStudio) uploadFile(ctx context.Context, r io.Reader) (*llmadapter.Bat
 		})
 
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
-		return &llmadapter.BatchRequest{
-			Provider: p,
-			Filename: file.Name,
-		}, nil
+		return file.Name, nil
 
 	case genai.BackendVertexAI:
 		client, err := storage.NewClient(ctx)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		filename := fmt.Sprintf("llm/inputs/%s", "input.jsonl")
@@ -188,19 +187,16 @@ func (p *AiStudio) uploadFile(ctx context.Context, r io.Reader) (*llmadapter.Bat
 		wr := object.NewWriter(ctx)
 
 		if _, err := io.Copy(wr, r); err != nil {
-			return nil, err
+			return "", err
 		}
 		if err := wr.Close(); err != nil {
-			return nil, err
+			return "", err
 		}
 
-		return &llmadapter.BatchRequest{
-			Provider: p,
-			Filename: fmt.Sprintf("gs://%s/%s", p.bucket, filename),
-		}, nil
+		return fmt.Sprintf("gs://%s/%s", p.bucket, filename), nil
 
 	default:
-		return nil, errors.New("invalid backend")
+		return "", errors.New("invalid backend")
 	}
 }
 
