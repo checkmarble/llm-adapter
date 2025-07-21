@@ -42,3 +42,9 @@ func WithDefaultModel(model string) opt {
 		p.model = &model
 	}
 }
+
+func WithBucket(bucket string) opt {
+	return func(p *AiStudio) {
+		p.bucket = bucket
+	}
+}

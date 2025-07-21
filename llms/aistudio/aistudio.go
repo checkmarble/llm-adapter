@@ -14,6 +14,7 @@ import (
 )
 
 type AiStudio struct {
+	name    string
 	client  *genai.Client
 	history llmadapter.History[*genai.Content]
 
@@ -22,6 +23,8 @@ type AiStudio struct {
 	project  string
 	location string
 	model    *string
+
+	bucket string
 }
 
 func (*AiStudio) RequestOptionsType() reflect.Type {
@@ -38,6 +41,10 @@ func New(opts ...opt) (*AiStudio, error) {
 	}
 
 	return &llm, nil
+}
+
+func (p *AiStudio) SetName(name string) {
+	p.name = name
 }
 
 func (p *AiStudio) Init(adapter internal.Adapter) error {
@@ -109,7 +116,7 @@ func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.Reque
 	}
 
 	cfg := genai.GenerateContentConfig{
-		CandidateCount:  int32(lo.FromPtr(r.MaxCandidates)),
+		CandidateCount:  int32(lo.CoalesceOrEmpty(lo.FromPtr(r.MaxCandidates), 1)),
 		MaxOutputTokens: int32(lo.FromPtr(r.MaxTokens)),
 		Temperature:     internal.MaybeF64ToF32(r.Temperature),
 		TopP:            internal.MaybeF64ToF32(r.TopP),
@@ -133,17 +140,19 @@ func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.Reque
 		cfg.ResponseJsonSchema = lo.CoalesceOrEmpty(r.SchemaOverride, r.ResponseSchema)
 	}
 
-	cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(_ string, t internal.Tool) *genai.Tool {
-		return &genai.Tool{
-			FunctionDeclarations: []*genai.FunctionDeclaration{
-				{
-					Name:                 t.Name,
-					Description:          t.Description,
-					ParametersJsonSchema: t.Parameters,
+	if len(r.Tools) > 0 {
+		cfg.Tools = append(cfg.Tools, lo.MapToSlice(r.Tools, func(_ string, t internal.Tool) *genai.Tool {
+			return &genai.Tool{
+				FunctionDeclarations: []*genai.FunctionDeclaration{
+					{
+						Name:                 t.Name,
+						Description:          t.Description,
+						ParametersJsonSchema: t.Parameters,
+					},
 				},
-			},
-		}
-	})...)
+			}
+		})...)
+	}
 
 Messages:
 	for _, msg := range r.Messages {

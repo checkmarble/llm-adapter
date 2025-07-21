@@ -16,6 +16,9 @@ import (
 )
 
 type OpenAi struct {
+	llmadapter.BatchUnsupported
+
+	name    string
 	client  openai.Client
 	history llmadapter.History[openai.ChatCompletionMessageParamUnion]
 
@@ -38,6 +41,10 @@ func New(opts ...Opt) (*OpenAi, error) {
 	}
 
 	return &llm, nil
+}
+
+func (p *OpenAi) SetName(name string) {
+	p.name = name
 }
 
 func (p *OpenAi) Init(llm internal.Adapter) error {

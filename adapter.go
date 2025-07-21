@@ -17,6 +17,7 @@ const (
 // It provides a contract for initializing, managing context,
 // and performing chat completions with different language models.
 type Llm interface {
+	SetName(string)
 	// Init initializes the LLM provider with the given adapter configuration.
 	// It is called once when the provider is added to the adapter.
 	Init(llm internal.Adapter) error
@@ -35,6 +36,10 @@ type Llm interface {
 	// request options struct. This is used for type checking and reflection
 	// when processing custom request options.
 	RequestOptionsType() reflect.Type
+
+	SubmitBatch(context.Context, internal.Adapter, ...Requester) (*UntypedBatchPromise, error)
+	Check(context.Context, *UntypedBatchPromise) (BatchStatus, error)
+	Wait(ctx context.Context, pr *UntypedBatchPromise) <-chan BatchWaitResponse
 }
 
 // LlmAdapter is the main entrypoint for interacting with different LLM providers.
@@ -107,6 +112,28 @@ func (llm *LlmAdapter) GetProvider(requestProvider *string) (Llm, error) {
 	}
 
 	return provider, nil
+}
+
+func (llm *LlmAdapter) SubmitBatch(ctx context.Context, providerName string, reqs ...Requester) (*UntypedBatchPromise, error) {
+	p, ok := llm.providers[providerName]
+	if !ok {
+		return nil, errors.Newf("unknown provider '%s'", providerName)
+	}
+
+	return p.SubmitBatch(ctx, llm, reqs...)
+}
+
+func (llm *LlmAdapter) BatchPromise(providerName string, id string) (*UntypedBatchPromise, error) {
+	provider, ok := llm.providers[providerName]
+	if !ok {
+		return nil, errors.New("cannot find the provider that created this promise")
+	}
+
+	return &UntypedBatchPromise{
+		ProviderName: providerName,
+		Provider:     provider,
+		Id:           id,
+	}, nil
 }
 
 // LlmAdapter implementation of Adapter

@@ -1,6 +1,8 @@
 package internal
 
-import "net/http"
+import (
+	"net/http"
+)
 
 // Adapter defines the interface for internal configuration and utility methods
 // that LLM providers can access from the main LlmAdapter.
