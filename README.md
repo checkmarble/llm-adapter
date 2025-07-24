@@ -14,7 +14,7 @@ gemini, err := aistudio.New()
 
 llm, err := llmadapter.New(
 	llmadapter.WithDefaultProvider(gpt),
-	llmadapter.WithAdapter("gemini", gemini),
+	llmadapter.WithProvider("gemini", gemini),
 	llmadapter.WithDefaultModel("gpt-4"),
 )
 ```
@@ -186,12 +186,12 @@ func main() {
 		aistudio.WithBackend(genai.BackendVertexAI),
 		aistudio.WithProject(os.Getenv("GOOGLE_CLOUD_PROJECT")),
 		aistudio.WithLocation("europe-west1"),
+		aistudio.WithApiKey(os.Getenv("LLM_API_KEY"))
 	)
 
 	llm, _ := llmadapter.New(
 		llmadapter.WithDefaultProvider(provider),
 		llmadapter.WithDefaultModel("gemini-2.5-flash"),
-		llmadapter.WithApiKey(os.Getenv("LLM_API_KEY")),
 	)
 
 	resp, _ := llmadapter.NewRequest[Output]().
