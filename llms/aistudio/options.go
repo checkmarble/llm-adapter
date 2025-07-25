@@ -2,18 +2,18 @@ package aistudio
 
 import "google.golang.org/genai"
 
-type opt func(*AiStudio)
+type Opt func(*AiStudio)
 
 // WithBackend represents which Google GenAI backend to use (VertexAI or Gemini).
 //
 // It only accepts values of `genai.GeminiAPI` or `genai.VertexAI`.
-func WithBackend(backend genai.Backend) opt {
+func WithBackend(backend genai.Backend) Opt {
 	return func(p *AiStudio) {
 		p.backend = backend
 	}
 }
 
-func WithApiKey(apiKey string) opt {
+func WithApiKey(apiKey string) Opt {
 	return func(p *AiStudio) {
 		p.apiKey = apiKey
 	}
@@ -22,7 +22,7 @@ func WithApiKey(apiKey string) opt {
 // WithProject defines the Google Cloud Platform project to use to connect to VertexAI.
 //
 // It is only taken into account when using the VertexAI backend.
-func WithProject(project string) opt {
+func WithProject(project string) Opt {
 	return func(p *AiStudio) {
 		p.project = project
 	}
@@ -31,13 +31,13 @@ func WithProject(project string) opt {
 // WithLocation defines the Google Cloud Platform region to use to connect to VertexAI.
 //
 // It is only taken into account when using the VertexAI backend.
-func WithLocation(location string) opt {
+func WithLocation(location string) Opt {
 	return func(p *AiStudio) {
 		p.location = location
 	}
 }
 
-func WithDefaultModel(model string) opt {
+func WithDefaultModel(model string) Opt {
 	return func(p *AiStudio) {
 		p.model = &model
 	}

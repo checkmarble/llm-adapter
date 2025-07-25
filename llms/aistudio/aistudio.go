@@ -28,7 +28,7 @@ func (*AiStudio) RequestOptionsType() reflect.Type {
 	return reflect.TypeFor[RequestOptions]()
 }
 
-func New(opts ...opt) (*AiStudio, error) {
+func New(opts ...Opt) (*AiStudio, error) {
 	llm := AiStudio{
 		backend: genai.BackendGeminiAPI,
 	}
