@@ -42,6 +42,8 @@ req, err := llmadapter.NewUntypedRequest() // Equivalent to `NewRequest[string](
 
 If you wish for your response to be serialized into a type that cannot be represented as a static struct (for example, if you build your types dynamically), you can specify the schema yourself with `OverrideResponseSchema()`. Note that this schema still requires to be unserializable into the provided type.
 
+Note that if you build your own JSON schema, it is your responsibility to make one that is accepted by your provider. Notably, you should probably add `AdditionalProperties: jsonschema.SchemaFalse` to your object schemas.
+
 ```go
 
 props := jsonschema.NewProperties()
