@@ -175,6 +175,10 @@ Messages:
 		case llmadapter.RoleUser:
 			role = genai.RoleUser
 		case llmadapter.RoleTool:
+			if msg.Tool == nil {
+				return nil, nil, errors.New("sent a tool response when no tool was invoked")
+			}
+
 			msg := &genai.Content{
 				Role: role,
 				Parts: []*genai.Part{
