@@ -105,15 +105,6 @@ A few utilities are available to run multiple requests at the same time:
 
 Note that cancelled requests will still incur cost on most providers.
 
-#### Chaining
-
-To conduct a conversation, one candidate must be selected as the basis for the next request.
-
-```go
-resp1, err := req.Do(ctx, llm)
-resp2, err := req.FromCandidate(resp1, 0).Do(ctx, llm)
-````
-
 #### History
 
 By default, every request will be sent with a blank context. To opt into history accumulation (building a context through the conversation), one can use `threads`. By starting a threads in one request, and then re-using that same thread in subsequent requests, inputs and outputs will be accumulated and sent with every request.
@@ -134,6 +125,15 @@ When using thread, by default, both inputs and outputs are saved. To opt out of 
 Note that starting a response from a previous candidate automatically adds that response to the relevant thread history.
 
 Threads should be closed after you are done using them to clean associated resources. We recomment deferring a call to `(*ThreadId).Close()` after you create it. If you do not, threads will live on until the whole adapter is garbage collected.
+
+#### Chaining
+
+To conduct a conversation, you must select one candidate response as the basis for the next request. The first request needs to be in a thread.
+
+```go
+resp1, err := req.CreateThread().Do(ctx, llm)
+resp2, err := req.FromCandidate(resp1, 0).Do(ctx, llm)
+````
 
 #### Tool calling
 
