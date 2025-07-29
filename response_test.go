@@ -3,7 +3,7 @@ package llmadapter_test
 import (
 	"testing"
 
-	llmadapter "github.com/checkmarble/marble-llm-adapter"
+	llmadapter "github.com/checkmarble/llm-adapter"
 	"github.com/stretchr/testify/assert"
 )
 

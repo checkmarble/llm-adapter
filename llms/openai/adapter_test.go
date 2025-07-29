@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	llmadapter "github.com/checkmarble/marble-llm-adapter"
+	llmadapter "github.com/checkmarble/llm-adapter"
 	"github.com/invopop/jsonschema"
 	"github.com/stretchr/testify/assert"
 )

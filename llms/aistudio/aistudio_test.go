@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	llmadapter "github.com/checkmarble/marble-llm-adapter"
-	"github.com/checkmarble/marble-llm-adapter/llms/aistudio"
+	llmadapter "github.com/checkmarble/llm-adapter"
+	"github.com/checkmarble/llm-adapter/llms/aistudio"
 	"github.com/h2non/gock"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"

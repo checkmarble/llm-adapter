@@ -6,8 +6,8 @@ import (
 	"io"
 	"reflect"
 
-	llmadapter "github.com/checkmarble/marble-llm-adapter"
-	"github.com/checkmarble/marble-llm-adapter/internal"
+	llmadapter "github.com/checkmarble/llm-adapter"
+	"github.com/checkmarble/llm-adapter/internal"
 	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
 	"google.golang.org/genai"

@@ -5,7 +5,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/checkmarble/marble-llm-adapter/internal"
+	"github.com/checkmarble/llm-adapter/internal"
 	"github.com/stretchr/testify/mock"
 )
 

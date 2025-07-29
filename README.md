@@ -2,6 +2,8 @@
 
 Type-safe wrapper adapter around various LLM providers.
 
+_Note:_ this library is a very early preview, meaning it will have major breaking changes until 1.0, including its name and import paths.
+
 ## Usage
 
 ### Basic setup

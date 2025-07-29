@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	llmadapter "github.com/checkmarble/marble-llm-adapter"
-	"github.com/checkmarble/marble-llm-adapter/llms/aistudio"
-	"github.com/checkmarble/marble-llm-adapter/llms/openai"
+	llmadapter "github.com/checkmarble/llm-adapter"
+	"github.com/checkmarble/llm-adapter/llms/aistudio"
+	"github.com/checkmarble/llm-adapter/llms/openai"
 	"google.golang.org/genai"
 )
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	llmadapter "github.com/checkmarble/marble-llm-adapter"
+	llmadapter "github.com/checkmarble/llm-adapter"
 	"github.com/h2non/gock"
 	"github.com/invopop/jsonschema"
 	"github.com/samber/lo"

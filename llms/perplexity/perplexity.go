@@ -3,9 +3,9 @@ package perplexity
 import (
 	"reflect"
 
-	llmadapter "github.com/checkmarble/marble-llm-adapter"
-	"github.com/checkmarble/marble-llm-adapter/internal"
-	base "github.com/checkmarble/marble-llm-adapter/llms/openai"
+	llmadapter "github.com/checkmarble/llm-adapter"
+	"github.com/checkmarble/llm-adapter/internal"
+	base "github.com/checkmarble/llm-adapter/llms/openai"
 	"github.com/fatih/structs"
 	"github.com/openai/openai-go"
 )

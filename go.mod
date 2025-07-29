@@ -1,9 +1,10 @@
-module github.com/checkmarble/marble-llm-adapter
+module github.com/checkmarble/llm-adapter
 
 go 1.24.4
 
 require (
 	github.com/cockroachdb/errors v1.12.0
+	github.com/fatih/structs v1.1.0
 	github.com/h2non/gock v1.2.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/openai/openai-go v1.9.0
@@ -22,7 +23,6 @@ require (
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fatih/structs v1.1.0 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect

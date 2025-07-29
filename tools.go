@@ -1,7 +1,7 @@
 package llmadapter
 
 import (
-	"github.com/checkmarble/marble-llm-adapter/internal"
+	"github.com/checkmarble/llm-adapter/internal"
 )
 
 // Function is a wrapper for the code executed in a tool.

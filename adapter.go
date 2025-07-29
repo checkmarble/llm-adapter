@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/checkmarble/marble-llm-adapter/internal"
+	"github.com/checkmarble/llm-adapter/internal"
 	"github.com/cockroachdb/errors"
 )
 

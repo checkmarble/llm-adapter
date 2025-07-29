@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/checkmarble/marble-llm-adapter/internal"
+	"github.com/checkmarble/llm-adapter/internal"
 	"github.com/cockroachdb/errors"
 	"github.com/invopop/jsonschema"
 	"github.com/samber/lo"

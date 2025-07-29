@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"time"
 
-	llmadapter "github.com/checkmarble/marble-llm-adapter"
-	"github.com/checkmarble/marble-llm-adapter/internal"
+	llmadapter "github.com/checkmarble/llm-adapter"
+	"github.com/checkmarble/llm-adapter/internal"
 	"github.com/cockroachdb/errors"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
