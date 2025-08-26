@@ -26,6 +26,7 @@ func TestPerplexityExtras(t *testing.T) {
 			WebSearch: WebSearch{
 				UserLocation: UserLocation{Country: "FR"},
 			},
+			SearchDomainFilter: []string{"google.com", "wikipedia.org"},
 		})
 
 	gock.New("https://api.perplexity.ai").
@@ -34,11 +35,13 @@ func TestPerplexityExtras(t *testing.T) {
 		AddMatcher(func(req *http.Request, _ *gock.Request) (bool, error) {
 			body, _ := io.ReadAll(req.Body)
 
-			assert.Len(t, gjson.GetBytes(body, "@this").Map(), 4) // Always includes `messages`.
+			assert.Len(t, gjson.GetBytes(body, "@this").Map(), 5) // Always includes `messages`.
 			assert.Equal(t, "academic", gjson.GetBytes(body, "search_mode").String())
 			assert.Equal(t, "7/1/2025", gjson.GetBytes(body, "search_before_date_filter").String())
 			assert.Equal(t, "FR", gjson.GetBytes(body, "web_search_options.user_location.country").String())
-
+			assert.Len(t, gjson.GetBytes(body, "search_domain_filter").Array(), 2)
+			assert.Equal(t, "google.com", gjson.GetBytes(body, "search_domain_filter").Array()[0].String())
+			assert.Equal(t, "wikipedia.org", gjson.GetBytes(body, "search_domain_filter").Array()[1].String())
 			return true, nil
 		}).
 		Reply(http.StatusOK).
