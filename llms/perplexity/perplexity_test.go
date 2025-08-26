@@ -27,7 +27,8 @@ func TestPerplexityExtras(t *testing.T) {
 				UserLocation: UserLocation{Country: "FR"},
 			},
 			SearchDomainFilter: []string{"google.com", "wikipedia.org"},
-		})
+		}).
+		WithText(llmadapter.RoleUser, "C'est une bonne situation ça Scribe ?")
 
 	gock.New("https://api.perplexity.ai").
 		Post("/chat/completions").
@@ -42,12 +43,65 @@ func TestPerplexityExtras(t *testing.T) {
 			assert.Len(t, gjson.GetBytes(body, "search_domain_filter").Array(), 2)
 			assert.Equal(t, "google.com", gjson.GetBytes(body, "search_domain_filter").Array()[0].String())
 			assert.Equal(t, "wikipedia.org", gjson.GetBytes(body, "search_domain_filter").Array()[1].String())
+			assert.Equal(t, "C'est une bonne situation ça Scribe ?", gjson.GetBytes(body, "messages.0.content.0.text").String())
 			return true, nil
 		}).
 		Reply(http.StatusOK).
-		SetHeader("content-type", "application/json")
+		SetHeader("content-type", "application/json").
+		BodyString(`
+		{
+			"id": "Numerobis",
+			"model": "sonar",
+			"created": 1756219624,
+			"usage": {
+				"prompt_tokens": 79,
+				"completion_tokens": 367,
+				"total_tokens": 446,
+				"search_context_size": "low",
+				"cost": {
+					"input_tokens_cost": 0,
+					"output_tokens_cost": 0,
+					"request_cost": 0.005,
+					"total_cost": 0.005
+				}
+			},
+			"object": "chat.completion",
+			"choices": [
+				{
+					"index": 0,
+					"finish_reason": "stop",
+					"message": {
+						"content": "Vous savez, moi je ne crois pas qu’il y ait de bonne ou de mauvaise situation.",
+						"role": "system"
+					}
+				}
+			],
+			"search_results": [
+				{
+					"title": "Je n'en peux plus de ces papyrus là",
+					"url": "https://www.kaakook.fr/citation-1331",
+					"date": "2002-01-30"
+				},
+				{
+					"title": "Le mec… Il s’appelle On ! Donc c’est le phare-à-On ! Le pharaon !",
+					"url": "https://www.kaakook.fr/citation-4422",
+					"date": "2002-01-30"
+				}
+			]
+		}
+		`)
 
-	_, _ = req.Do(t.Context(), llm)
+	resp, err := req.Do(t.Context(), llm)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "Vous savez, moi je ne crois pas qu’il y ait de bonne ou de mauvaise situation.", resp.Candidates[0].Text)
+	assert.Equal(t, "Je n'en peux plus de ces papyrus là", resp.Candidates[0].Grounding.Sources[0].Title)
+	assert.Equal(t, "https://www.kaakook.fr/citation-1331", resp.Candidates[0].Grounding.Sources[0].Url)
+	date, _ := time.Parse(time.DateOnly, "2002-01-30")
+	assert.Equal(t, date, resp.Candidates[0].Grounding.Sources[0].Date)
+	assert.Equal(t, "Le mec… Il s’appelle On ! Donc c’est le phare-à-On ! Le pharaon !", resp.Candidates[0].Grounding.Sources[1].Title)
+	assert.Equal(t, "https://www.kaakook.fr/citation-4422", resp.Candidates[0].Grounding.Sources[1].Url)
+	assert.Equal(t, date, resp.Candidates[0].Grounding.Sources[1].Date)
 
 	assert.False(t, gock.HasUnmatchedRequest())
 }
