@@ -22,13 +22,14 @@ const (
 )
 
 type RequestOptions struct {
-	SearchMode        SearchMode `structs:"search_mode,omitempty"`
-	SearchRecency     string     `structs:"search_recency_filter,omitempty"`
-	BeforeDate        date       `structs:"search_before_date_filter,string,omitempty"`
-	AfterDate         date       `structs:"search_after_date_filter,string,omitempty"`
-	LastUpdatedBefore date       `structs:"last_updated_before_filter,string,omitempty"`
-	LastUpdatedAfter  date       `structs:"last_updated_after_filter,string,omitempty"`
-	WebSearch         WebSearch  `structs:"web_search_options,omitempty"`
+	SearchMode         SearchMode `structs:"search_mode,omitempty"`
+	SearchRecency      string     `structs:"search_recency_filter,omitempty"`
+	BeforeDate         date       `structs:"search_before_date_filter,string,omitempty"`
+	AfterDate          date       `structs:"search_after_date_filter,string,omitempty"`
+	LastUpdatedBefore  date       `structs:"last_updated_before_filter,string,omitempty"`
+	LastUpdatedAfter   date       `structs:"last_updated_after_filter,string,omitempty"`
+	SearchDomainFilter []string   `structs:"search_domain_filter,omitempty"`
+	WebSearch          WebSearch  `structs:"web_search_options,omitempty"`
 }
 
 type WebSearch struct {
