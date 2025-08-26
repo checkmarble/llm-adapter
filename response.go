@@ -53,8 +53,10 @@ type ResponseGrounding struct {
 }
 
 type ResponseGroudingSource struct {
+	Title  string
 	Domain string
 	Url    string
+	Date   time.Time
 }
 
 // ResponseToolCall is a request from a provider to execute a tool.

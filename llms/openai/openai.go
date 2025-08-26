@@ -19,7 +19,8 @@ type OpenAi struct {
 	client  openai.Client
 	history llmadapter.History[openai.ChatCompletionMessageParamUnion]
 
-	RequestHookFunc func(llmadapter.Requester, *openai.ChatCompletionNewParams) error
+	RequestHookFunc  func(llmadapter.Requester, *openai.ChatCompletionNewParams) error
+	ResponseHookFunc func(*openai.ChatCompletion, *llmadapter.InnerResponse) error
 
 	baseUrl string
 	apiKey  string
@@ -86,7 +87,18 @@ func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, reque
 		return nil, errors.Wrap(err, "LLM provider failed to generate content")
 	}
 
-	return p.adaptResponse(llm, response, requester)
+	responseAdapter, err := p.adaptResponse(llm, response, requester)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not adapt response")
+	}
+
+	if p.ResponseHookFunc != nil {
+		if err := p.ResponseHookFunc(response, responseAdapter); err != nil {
+			return nil, err
+		}
+	}
+
+	return responseAdapter, nil
 }
 
 func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Requester) (*openai.ChatCompletionNewParams, error) {
@@ -239,7 +251,7 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 	return &cfg, nil
 }
 
-func (p *OpenAi) adaptResponse(llm internal.Adapter, response *openai.ChatCompletion, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
+func (p *OpenAi) adaptResponse(_ internal.Adapter, response *openai.ChatCompletion, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
 	resp := llmadapter.InnerResponse{
 		Id:         response.ID,
 		Model:      response.Model,
