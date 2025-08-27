@@ -70,18 +70,18 @@ func (p *Perplexity) transformResponse(response *openai.ChatCompletion, resp *ll
 	// Perplexity returns only one candidate, the search results are linked to this candidate
 	// Use loop to avoid dealing with checking if there is a candidate or not
 	for i := range resp.Candidates {
-		grouding := llmadapter.ResponseGrounding{
-			Sources: lo.Map(searchResults, func(result SearchResult, _ int) llmadapter.ResponseGroudingSource {
+		grounding := llmadapter.ResponseGrounding{
+			Sources: lo.Map(searchResults, func(result SearchResult, _ int) llmadapter.ResponseGroundingSource {
 				date, _ := time.Parse(time.DateOnly, result.Date)
 
-				return llmadapter.ResponseGroudingSource{
+				return llmadapter.ResponseGroundingSource{
 					Title: result.Title,
 					Url:   result.URL,
 					Date:  date,
 				}
 			}),
 		}
-		resp.Candidates[i].Grounding = &grouding
+		resp.Candidates[i].Grounding = &grounding
 	}
 
 	return nil

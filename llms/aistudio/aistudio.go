@@ -261,8 +261,8 @@ func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateC
 		if candidate.GroundingMetadata != nil {
 			grounding = &llmadapter.ResponseGrounding{
 				Searches: candidate.GroundingMetadata.WebSearchQueries,
-				Sources: lo.Map(candidate.GroundingMetadata.GroundingChunks, func(c *genai.GroundingChunk, _ int) llmadapter.ResponseGroudingSource {
-					return llmadapter.ResponseGroudingSource{
+				Sources: lo.Map(candidate.GroundingMetadata.GroundingChunks, func(c *genai.GroundingChunk, _ int) llmadapter.ResponseGroundingSource {
+					return llmadapter.ResponseGroundingSource{
 						Domain: lo.CoalesceOrEmpty(c.Web.Domain, c.Web.Title),
 						Url:    c.Web.URI,
 					}

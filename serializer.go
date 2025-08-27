@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	// Serializers is a global object that hold singleton of library-provided
+	// Serializers is a global object that holds singleton of library-provided
 	// serializers
 	Serializers = struct {
 		Json jsonSerializer
