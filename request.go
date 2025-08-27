@@ -91,7 +91,7 @@ type innerRequest struct {
 // which candidate it responds to, in order to link tool responses to their
 // corresponding tool calls.
 //
-// It is generic in T which it will use to unmarshal the reponse into a typed
+// It is generic in T which it will use to unmarshal the response into a typed
 // struct.
 type Request[T any] struct {
 	innerRequest
@@ -421,7 +421,7 @@ func (r Request[T]) withToolResponse(tool ResponseToolCall, parts string) Reques
 // It will also take care of adding the matching tool definitions to the
 // Request, so there is not need to also call `WithTool`.
 //
-// Note that this requires that a candidate from the previous reponse was
+// Note that this requires that a candidate from the previous response was
 // selected by calling `FromCandidate()` before this function, to determine
 // which function the provider asked to be called.
 func (r Request[T]) WithToolExecution(tools ...internal.Tool) Request[T] {
@@ -458,7 +458,7 @@ func (r Request[T]) WithToolExecution(tools ...internal.Tool) Request[T] {
 	return r
 }
 
-// WithProviderOptions set provier-specific options.
+// WithProviderOptions set provider-specific options.
 //
 // Some options are not going to be supported by all providers, so they will
 // usually defined a type representing options specific to them. This function

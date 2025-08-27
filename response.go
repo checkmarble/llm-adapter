@@ -48,11 +48,11 @@ type ResponseCandidate struct {
 
 type ResponseGrounding struct {
 	Searches []string
-	Sources  []ResponseGroudingSource
+	Sources  []ResponseGroundingSource
 	Snippets []string
 }
 
-type ResponseGroudingSource struct {
+type ResponseGroundingSource struct {
 	Title  string
 	Domain string
 	Url    string
@@ -104,7 +104,7 @@ func (r Response[T]) Thread() *ThreadId {
 
 // Get will return the deserialized output for a candidate.
 //
-// It will parse the reponse and deserialize it to the requested type, or return
+// It will parse the response and deserialize it to the requested type, or return
 // an error if it cannot.
 func (r Response[T]) Get(idx int) (T, error) {
 	if idx > len(r.Candidates)-1 {
