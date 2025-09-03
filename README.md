@@ -1,4 +1,4 @@
-# [WIP] LLM Adapter
+# LLMberjack 🪵🪓🦊
 
 Type-safe wrapper adapter around various LLM providers.
 
@@ -8,7 +8,7 @@ _Note:_ this library is a very early preview, meaning it will have major breakin
 
 ### Basic setup
 
-LLM Adapter is used by setting up an instance of it with _at least_ one provider. An adapter can be configured with more (named) providers, which can be selected by their names when sending requests.
+LLMberjack is used by setting up an instance of it with _at least_ one provider. An adapter can be configured with more (named) providers, which can be selected by their names when sending requests.
 
 ```go
 gpt, err := openai.New(openai.WithApiKey("..."))
