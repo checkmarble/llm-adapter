@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"time"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
-	"github.com/checkmarble/llm-adapter/internal"
-	base "github.com/checkmarble/llm-adapter/llms/openai"
+	llmberjack "github.com/checkmarble/llmberjack"
+	"github.com/checkmarble/llmberjack/internal"
+	base "github.com/checkmarble/llmberjack/llms/openai"
 	"github.com/fatih/structs"
 	"github.com/openai/openai-go"
 	"github.com/samber/lo"
@@ -44,7 +44,7 @@ func New(openAiOpts ...base.Opt) (*Perplexity, error) {
 	return &llm, nil
 }
 
-func (p *Perplexity) transformRequest(requester llmadapter.Requester, cfg *openai.ChatCompletionNewParams) error {
+func (p *Perplexity) transformRequest(requester llmberjack.Requester, cfg *openai.ChatCompletionNewParams) error {
 	opts := internal.CastProviderOptions[RequestOptions](requester.ProviderRequestOptions(p))
 
 	cfg.SetExtraFields(structs.Map(opts))
@@ -52,7 +52,7 @@ func (p *Perplexity) transformRequest(requester llmadapter.Requester, cfg *opena
 	return nil
 }
 
-func (p *Perplexity) transformResponse(response *openai.ChatCompletion, resp *llmadapter.InnerResponse) error {
+func (p *Perplexity) transformResponse(response *openai.ChatCompletion, resp *llmberjack.InnerResponse) error {
 	searchResultsField, ok := response.JSON.ExtraFields["search_results"]
 	if !ok {
 		return nil
@@ -70,11 +70,11 @@ func (p *Perplexity) transformResponse(response *openai.ChatCompletion, resp *ll
 	// Perplexity returns only one candidate, the search results are linked to this candidate
 	// Use loop to avoid dealing with checking if there is a candidate or not
 	for i := range resp.Candidates {
-		grounding := llmadapter.ResponseGrounding{
-			Sources: lo.Map(searchResults, func(result SearchResult, _ int) llmadapter.ResponseGroundingSource {
+		grounding := llmberjack.ResponseGrounding{
+			Sources: lo.Map(searchResults, func(result SearchResult, _ int) llmberjack.ResponseGroundingSource {
 				date, _ := time.Parse(time.DateOnly, result.Date)
 
-				return llmadapter.ResponseGroundingSource{
+				return llmberjack.ResponseGroundingSource{
 					Title: result.Title,
 					Url:   result.URL,
 					Date:  date,

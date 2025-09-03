@@ -1,4 +1,4 @@
-package llmadapter
+package llmberjack
 
 import (
 	"io"

@@ -1,4 +1,4 @@
-package llmadapter
+package llmberjack
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/checkmarble/llm-adapter/internal"
+	"github.com/checkmarble/llmberjack/internal"
 	"github.com/cockroachdb/errors"
 	"github.com/invopop/jsonschema"
 	"github.com/samber/lo"
@@ -124,8 +124,8 @@ func NewUntypedRequest() Request[string] {
 //
 // Example usage:
 //
-//	resp, err := llmadapter.NewRequest[Output]().
-//		WithText(llmadapter.RoleUser, "How are you today?").
+//	resp, err := llmberjack.NewRequest[Output]().
+//		WithText(llmberjack.RoleUser, "How are you today?").
 //		Do(ctx, llm)
 func NewRequest[T any]() Request[T] {
 	r := innerRequest{
@@ -148,7 +148,7 @@ func NewRequest[T any]() Request[T] {
 //
 // It will return a response generic over the configured typed on the Request,
 // or an error.
-func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*Response[T], error) {
+func (r Request[T]) Do(ctx context.Context, llm *llmberjack) (*Response[T], error) {
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -217,9 +217,9 @@ func (r Request[T]) InThread(threadId *ThreadId) Request[T] {
 //
 // Example usage:
 //
-//	resp, err := llmadapter.NewRequest[Output]().
+//	resp, err := llmberjack.NewRequest[Output]().
 //		FromCandidate(previousResp, 0).
-//		WithText(llmadapter.RoleUser, "How are you today?").
+//		WithText(llmberjack.RoleUser, "How are you today?").
 //		Do(ctx, llm)
 func (r Request[T]) FromCandidate(c Candidater, idx int) Request[T] {
 	r.ThreadId = c.Thread()
@@ -390,9 +390,9 @@ func (r Request[T]) OverrideResponseSchema(schema jsonschema.Schema) Request[T] 
 //
 // Example usage:
 //
-//	resp, err := llmadapter.NewRequest[Output]().
-//		WithText(llmadapter.RoleUser, "How are you today?").
-//		WithTool(llmadapter.NewTool[WeatherParams]("get_weather", "Get weather at location", llmadapter.Function(func(args WeatherParams) (string, error) {
+//	resp, err := llmberjack.NewRequest[Output]().
+//		WithText(llmberjack.RoleUser, "How are you today?").
+//		WithTool(llmberjack.NewTool[WeatherParams]("get_weather", "Get weather at location", llmberjack.Function(func(args WeatherParams) (string, error) {
 //			return "Good weather!", nil
 //		})).
 //		Do(ctx, llm)

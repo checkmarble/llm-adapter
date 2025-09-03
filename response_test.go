@@ -1,9 +1,9 @@
-package llmadapter_test
+package llmberjack_test
 
 import (
 	"testing"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
+	llmberjack "github.com/checkmarble/llmberjack"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,9 +12,9 @@ func TestResponseGetOutput(t *testing.T) {
 		Text string `json:"text"`
 	}
 
-	r := llmadapter.Response[output]{
-		InnerResponse: llmadapter.InnerResponse{
-			Candidates: []llmadapter.ResponseCandidate{
+	r := llmberjack.Response[output]{
+		InnerResponse: llmberjack.InnerResponse{
+			Candidates: []llmberjack.ResponseCandidate{
 				{Text: `{"text":"first response"}`},
 				{Text: `{"text":"second response"}`},
 			},
@@ -43,9 +43,9 @@ func TestResponseGetInvalidJson(t *testing.T) {
 		Text string `json:"text"`
 	}
 
-	r := llmadapter.Response[output]{
-		InnerResponse: llmadapter.InnerResponse{
-			Candidates: []llmadapter.ResponseCandidate{
+	r := llmberjack.Response[output]{
+		InnerResponse: llmberjack.InnerResponse{
+			Candidates: []llmberjack.ResponseCandidate{
 				{Text: `{"text":"first`},
 			},
 		},
@@ -59,9 +59,9 @@ func TestResponseGetInvalidJson(t *testing.T) {
 }
 
 func TestResponseGetStringOutput(t *testing.T) {
-	r := llmadapter.Response[string]{
-		InnerResponse: llmadapter.InnerResponse{
-			Candidates: []llmadapter.ResponseCandidate{
+	r := llmberjack.Response[string]{
+		InnerResponse: llmberjack.InnerResponse{
+			Candidates: []llmberjack.ResponseCandidate{
 				{Text: "first response"},
 				{Text: "second response"},
 			},
@@ -90,9 +90,9 @@ func TestResponseGetCandidate(t *testing.T) {
 		Text string `json:"text"`
 	}
 
-	r := llmadapter.Response[output]{
-		InnerResponse: llmadapter.InnerResponse{
-			Candidates: []llmadapter.ResponseCandidate{
+	r := llmberjack.Response[output]{
+		InnerResponse: llmberjack.InnerResponse{
+			Candidates: []llmberjack.ResponseCandidate{
 				{Text: `{"text":"first response"}`},
 				{Text: `{"text":"second response"}`},
 			},

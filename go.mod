@@ -1,4 +1,4 @@
-module github.com/checkmarble/llm-adapter
+module github.com/checkmarble/llmberjack
 
 go 1.24.4
 

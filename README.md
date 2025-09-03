@@ -14,10 +14,10 @@ LLM Adapter is used by setting up an instance of it with _at least_ one provider
 gpt, err := openai.New(openai.WithApiKey("..."))
 gemini, err := aistudio.New()
 
-llm, err := llmadapter.New(
-	llmadapter.WithDefaultProvider(gpt),
-	llmadapter.WithProvider("gemini", gemini),
-	llmadapter.WithDefaultModel("gpt-4"),
+llm, err := llmberjack.New(
+	llmberjack.WithDefaultProvider(gpt),
+	llmberjack.WithProvider("gemini", gemini),
+	llmberjack.WithDefaultModel("gpt-4"),
 )
 ```
 
@@ -38,8 +38,8 @@ type Output struct {
 	LightColor string `json:"text" jsonschema_description:"Color of the traffic light" jsonschema:"enum=red,enum=yellow=enum=red"`
 }
 
-req, err := llmadapter.NewRequest[Output]()
-req, err := llmadapter.NewUntypedRequest() // Equivalent to `NewRequest[string]()`
+req, err := llmberjack.NewRequest[Output]()
+req, err := llmberjack.NewUntypedRequest() // Equivalent to `NewRequest[string]()`
 ````
 
 If you wish for your response to be serialized into a type that cannot be represented as a static struct (for example, if you build your types dynamically), you can specify the schema yourself with `OverrideResponseSchema()`. Note that this schema still requires to be unserializable into the provided type.
@@ -79,13 +79,13 @@ req.
 	WithInstruction("system prompt").
 	WithInstructionReader(strings.NewReader("system prompt")).
 	WithInstructionFile("/etc/prompt.md").
-	WithText(llmadapter.RoleUser, "user prompt").
-	WithTextReader(llmadapter.RoleUser, strings.NewReader("user prompt")).
-	WithJson(llmadapter.RoleUser, data). // Any JSON-serializable type
-	WithSerializable(llmadapter.RoleUser, llmadapter.Serializers.Json, data) // Use a decoder implementing llmadapter.Serializer
+	WithText(llmberjack.RoleUser, "user prompt").
+	WithTextReader(llmberjack.RoleUser, strings.NewReader("user prompt")).
+	WithJson(llmberjack.RoleUser, data). // Any JSON-serializable type
+	WithSerializable(llmberjack.RoleUser, llmberjack.Serializers.Json, data) // Use a decoder implementing llmberjack.Serializer
 ````
 
-`WithSerializable` accepts any type that fulfills the `Serializable` interface and that can write a arbitrarily-serialized input into an `io.Writer`. The library currently comes with two serializers, `llmadapters.Serializers.Json` and `llmadapter.Serializers.Csv`, but you would write your own.
+`WithSerializable` accepts any type that fulfills the `Serializable` interface and that can write a arbitrarily-serialized input into an `io.Writer`. The library currently comes with two serializers, `llmberjacks.Serializers.Json` and `llmberjack.Serializers.Csv`, but you would write your own.
 
 #### Executing
 
@@ -100,8 +100,8 @@ output, err := resp.Get(0)
 
 A few utilities are available to run multiple requests at the same time:
 
- - `llmadapter.All[T](context.Context, *llmadapter.LlmAdapter, reqs ...Request[T])` can be used to fire several requests at once, wait for all of them to return and get a slice of results.
- - `llmadapter.Race[T](context.Context, *llmadapter.LlmAdapter, reqs ...Request[T])` can be used to fire several requests at once, return the first successful response, and cancel the others.
+ - `llmberjack.All[T](context.Context, *llmberjack.llmberjack, reqs ...Request[T])` can be used to fire several requests at once, wait for all of them to return and get a slice of results.
+ - `llmberjack.Race[T](context.Context, *llmberjack.llmberjack, reqs ...Request[T])` can be used to fire several requests at once, return the first successful response, and cancel the others.
 
 Note that cancelled requests will still incur cost on most providers.
 
@@ -144,20 +144,20 @@ type WeatherToolParams struct {
 	Location string `json:"location" jsonschema_description:"The location for which to retrieve the weather forecast"`
 }
 
-weatherTool := llmadapter.NewTool[WeatherToolParams](
+weatherTool := llmberjack.NewTool[WeatherToolParams](
 	"get_weather_in_location",
 	"Get a weather forecast in a given location",
-	llmadapter.Function(func(p WeatherToolParams) (string, error) {
+	llmberjack.Function(func(p WeatherToolParams) (string, error) {
 		return "Weather is going to be very rainy with chance of thunderstorms", nil
 	}),
 )
 
-resp1, err := llmadapter.NewUntypedRequest().CreateThread().
-	WithText(llmadapter.RoleUser, "Tell me the weather in Paris.").
+resp1, err := llmberjack.NewUntypedRequest().CreateThread().
+	WithText(llmberjack.RoleUser, "Tell me the weather in Paris.").
 	WithTools(weatherTool).
 	Do(ctx, llm)
 
-resp2, err := llmadapter.NewUntypedRequest().FromCandidate(resp1, 0).
+resp2, err := llmberjack.NewUntypedRequest().FromCandidate(resp1, 0).
 	WithToolExecution(weatherTool).
 	Do(ctx, llm)
 ```
@@ -193,14 +193,14 @@ func main() {
 		aistudio.WithApiKey(os.Getenv("LLM_API_KEY"))
 	)
 
-	llm, _ := llmadapter.New(
-		llmadapter.WithDefaultProvider(provider),
-		llmadapter.WithDefaultModel("gemini-2.5-flash"),
+	llm, _ := llmberjack.New(
+		llmberjack.WithDefaultProvider(provider),
+		llmberjack.WithDefaultModel("gemini-2.5-flash"),
 	)
 
-	resp, _ := llmadapter.NewRequest[Output]().
+	resp, _ := llmberjack.NewRequest[Output]().
 		WithInstructionReader(systemPrompt).
-		WithText(llmadapter.RoleUser, "Hello, my name is Antoine!").
+		WithText(llmberjack.RoleUser, "Hello, my name is Antoine!").
 		Do(ctx, llm)
 
 	obj, _ := resp.Get(0)

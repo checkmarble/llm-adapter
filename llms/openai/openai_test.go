@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
-	"github.com/checkmarble/llm-adapter/llms/openai"
+	llmberjack "github.com/checkmarble/llmberjack"
+	"github.com/checkmarble/llmberjack/llms/openai"
 	"github.com/h2non/gock"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
@@ -43,17 +43,17 @@ func TestOpenAiRequest(t *testing.T) {
 	}
 
 	provider, _ := openai.New(openai.WithApiKey("apikey"))
-	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider))
+	llm, _ := llmberjack.New(llmberjack.WithDefaultProvider(provider))
 
-	req := llmadapter.NewRequest[Output]().
+	req := llmberjack.NewRequest[Output]().
 		WithModel("themodel").
 		WithInstruction("system text").
 		WithInstructionReader(strings.NewReader("text from reader")).
-		WithText(llmadapter.RoleUser, "user text").
-		WithTools(llmadapter.NewTool[Args]("thetool", "Tool to get nothing", llmadapter.Function(func(Args) (string, error) {
+		WithText(llmberjack.RoleUser, "user text").
+		WithTools(llmberjack.NewTool[Args]("thetool", "Tool to get nothing", llmberjack.Function(func(Args) (string, error) {
 			return "OK", nil
 		}))).
-		WithTextReader(llmadapter.RoleUser, strings.NewReader("text from reader"))
+		WithTextReader(llmberjack.RoleUser, strings.NewReader("text from reader"))
 
 	gock.New("https://api.openai.com").
 		Post("/v1/chat/completions").
@@ -104,7 +104,7 @@ func TestOpenAiRequest(t *testing.T) {
 	candidate, err := resp.Candidate(0)
 
 	assert.Nil(t, err)
-	assert.Equal(t, llmadapter.FinishReasonStop, candidate.FinishReason)
+	assert.Equal(t, llmberjack.FinishReasonStop, candidate.FinishReason)
 
 	output, err := resp.Get(0)
 

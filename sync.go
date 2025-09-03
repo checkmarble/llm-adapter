@@ -1,4 +1,4 @@
-package llmadapter
+package llmberjack
 
 import (
 	"context"
@@ -12,7 +12,7 @@ type AsyncResponse[T any] struct {
 	Error    error
 }
 
-func All[T any](ctx context.Context, llm *LlmAdapter, reqs ...Request[T]) []AsyncResponse[T] {
+func All[T any](ctx context.Context, llm *llmberjack, reqs ...Request[T]) []AsyncResponse[T] {
 	var wg sync.WaitGroup
 
 	responses := make([]AsyncResponse[T], len(reqs))
@@ -38,7 +38,7 @@ func All[T any](ctx context.Context, llm *LlmAdapter, reqs ...Request[T]) []Asyn
 	return responses
 }
 
-func Race[T any](ctx context.Context, llm *LlmAdapter, reqs ...Request[T]) (*Response[T], error) {
+func Race[T any](ctx context.Context, llm *llmberjack, reqs ...Request[T]) (*Response[T], error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

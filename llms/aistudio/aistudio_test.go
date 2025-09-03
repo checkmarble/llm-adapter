@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
-	"github.com/checkmarble/llm-adapter/llms/aistudio"
+	llmberjack "github.com/checkmarble/llmberjack"
+	"github.com/checkmarble/llmberjack/llms/aistudio"
 	"github.com/h2non/gock"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
@@ -45,17 +45,17 @@ func TestGoogleAiRequest(t *testing.T) {
 
 	httpClient := &http.Client{}
 	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendVertexAI), aistudio.WithLocation("location"), aistudio.WithProject("project"))
-	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithHttpClient(httpClient))
+	llm, _ := llmberjack.New(llmberjack.WithDefaultProvider(provider), llmberjack.WithHttpClient(httpClient))
 
-	req := llmadapter.NewRequest[Output]().
+	req := llmberjack.NewRequest[Output]().
 		WithModel("themodel").
 		WithInstruction("system text").
 		WithInstructionReader(strings.NewReader("text from reader")).
-		WithText(llmadapter.RoleUser, "user text").
-		WithTools(llmadapter.NewTool[Args]("thetool", "Tool to get nothing", llmadapter.Function(func(Args) (string, error) {
+		WithText(llmberjack.RoleUser, "user text").
+		WithTools(llmberjack.NewTool[Args]("thetool", "Tool to get nothing", llmberjack.Function(func(Args) (string, error) {
 			return "OK", nil
 		}))).
-		WithTextReader(llmadapter.RoleUser, strings.NewReader("text from reader"))
+		WithTextReader(llmberjack.RoleUser, strings.NewReader("text from reader"))
 
 	gock.InterceptClient(httpClient)
 
@@ -109,7 +109,7 @@ func TestGoogleAiRequest(t *testing.T) {
 	candidate, err := resp.Candidate(0)
 
 	assert.Nil(t, err)
-	assert.Equal(t, llmadapter.FinishReasonStop, candidate.FinishReason)
+	assert.Equal(t, llmberjack.FinishReasonStop, candidate.FinishReason)
 
 	output, err := resp.Get(0)
 

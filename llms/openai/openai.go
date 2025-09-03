@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"time"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
-	"github.com/checkmarble/llm-adapter/internal"
+	llmberjack "github.com/checkmarble/llmberjack"
+	"github.com/checkmarble/llmberjack/internal"
 	"github.com/cockroachdb/errors"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
@@ -17,10 +17,10 @@ import (
 
 type OpenAi struct {
 	client  openai.Client
-	history llmadapter.History[openai.ChatCompletionMessageParamUnion]
+	history llmberjack.History[openai.ChatCompletionMessageParamUnion]
 
-	RequestHookFunc  func(llmadapter.Requester, *openai.ChatCompletionNewParams) error
-	ResponseHookFunc func(*openai.ChatCompletion, *llmadapter.InnerResponse) error
+	RequestHookFunc  func(llmberjack.Requester, *openai.ChatCompletionNewParams) error
+	ResponseHookFunc func(*openai.ChatCompletion, *llmberjack.InnerResponse) error
 
 	baseUrl string
 	apiKey  string
@@ -58,19 +58,19 @@ func (p *OpenAi) Init(llm internal.Adapter) error {
 	return nil
 }
 
-func (p *OpenAi) ResetThread(threadId *llmadapter.ThreadId) {
+func (p *OpenAi) ResetThread(threadId *llmberjack.ThreadId) {
 	p.history.Clear(threadId)
 }
 
-func (p *OpenAi) CopyThread(threadId *llmadapter.ThreadId) *llmadapter.ThreadId {
+func (p *OpenAi) CopyThread(threadId *llmberjack.ThreadId) *llmberjack.ThreadId {
 	return p.history.Copy(threadId)
 }
 
-func (p *OpenAi) CloseThread(threadId *llmadapter.ThreadId) {
+func (p *OpenAi) CloseThread(threadId *llmberjack.ThreadId) {
 	p.history.Close(threadId)
 }
 
-func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
+func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmberjack.Requester) (*llmberjack.InnerResponse, error) {
 	cfg, err := p.adaptRequest(llm, requester)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not adapt request")
@@ -101,7 +101,7 @@ func (p *OpenAi) ChatCompletion(ctx context.Context, llm internal.Adapter, reque
 	return responseAdapter, nil
 }
 
-func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Requester) (*openai.ChatCompletionNewParams, error) {
+func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmberjack.Requester) (*openai.ChatCompletionNewParams, error) {
 	r := requester.ToRequest()
 	contents := make([]openai.ChatCompletionMessageParamUnion, 0, len(r.Messages))
 
@@ -183,7 +183,7 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 			}
 
 			switch msg.Type {
-			case llmadapter.TypeText:
+			case llmberjack.TypeText:
 				parts = append(parts, openai.TextContentPart(string(buf)))
 			}
 		}
@@ -191,7 +191,7 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 		content := openai.ChatCompletionMessageParamUnion{}
 
 		switch msg.Role {
-		case llmadapter.RoleAi:
+		case llmberjack.RoleAi:
 			content.OfAssistant = &openai.ChatCompletionAssistantMessageParam{
 				Content: openai.ChatCompletionAssistantMessageParamContentUnion{
 					OfArrayOfContentParts: lo.Map(parts, func(p openai.ChatCompletionContentPartUnionParam, _ int) openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion {
@@ -204,7 +204,7 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 				},
 			}
 
-		case llmadapter.RoleUser:
+		case llmberjack.RoleUser:
 			content.OfUser = &openai.ChatCompletionUserMessageParam{
 				Content: openai.ChatCompletionUserMessageParamContentUnion{
 					OfArrayOfContentParts: lo.Map(parts, func(p openai.ChatCompletionContentPartUnionParam, _ int) openai.ChatCompletionContentPartUnionParam {
@@ -217,7 +217,7 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 				},
 			}
 
-		case llmadapter.RoleSystem:
+		case llmberjack.RoleSystem:
 			content.OfSystem = &openai.ChatCompletionSystemMessageParam{
 				Content: openai.ChatCompletionSystemMessageParamContentUnion{
 					OfArrayOfContentParts: lo.Map(parts, func(p openai.ChatCompletionContentPartUnionParam, _ int) openai.ChatCompletionContentPartTextParam {
@@ -228,7 +228,7 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 				},
 			}
 
-		case llmadapter.RoleTool:
+		case llmberjack.RoleTool:
 			content.OfTool = &openai.ChatCompletionToolMessageParam{
 				ToolCallID: msg.Tool.Id,
 				Content: openai.ChatCompletionToolMessageParamContentUnion{
@@ -251,39 +251,39 @@ func (p *OpenAi) adaptRequest(llm internal.Adapter, requester llmadapter.Request
 	return &cfg, nil
 }
 
-func (p *OpenAi) adaptResponse(_ internal.Adapter, response *openai.ChatCompletion, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
-	resp := llmadapter.InnerResponse{
+func (p *OpenAi) adaptResponse(_ internal.Adapter, response *openai.ChatCompletion, requester llmberjack.Requester) (*llmberjack.InnerResponse, error) {
+	resp := llmberjack.InnerResponse{
 		Id:         response.ID,
 		Model:      response.Model,
-		Candidates: make([]llmadapter.ResponseCandidate, len(response.Choices)),
+		Candidates: make([]llmberjack.ResponseCandidate, len(response.Choices)),
 		Created:    time.Unix(response.Created, 0),
 	}
 
 	for idx, candidate := range response.Choices {
-		var finishReason llmadapter.FinishReason
+		var finishReason llmberjack.FinishReason
 
 		switch candidate.FinishReason {
 		case "stop":
-			finishReason = llmadapter.FinishReasonStop
+			finishReason = llmberjack.FinishReasonStop
 		case "length":
-			finishReason = llmadapter.FinishReasonMaxTokens
+			finishReason = llmberjack.FinishReasonMaxTokens
 		case "content_filter":
-			finishReason = llmadapter.FinishReasonContentFilter
+			finishReason = llmberjack.FinishReasonContentFilter
 		default:
-			finishReason = llmadapter.FinishReason(candidate.FinishReason)
+			finishReason = llmberjack.FinishReason(candidate.FinishReason)
 		}
 
-		toolCalls := make([]llmadapter.ResponseToolCall, len(candidate.Message.ToolCalls))
+		toolCalls := make([]llmberjack.ResponseToolCall, len(candidate.Message.ToolCalls))
 
 		for idx, toolCall := range candidate.Message.ToolCalls {
-			toolCalls[idx] = llmadapter.ResponseToolCall{
+			toolCalls[idx] = llmberjack.ResponseToolCall{
 				Id:         toolCall.ID,
 				Name:       toolCall.Function.Name,
 				Parameters: []byte(toolCall.Function.Arguments),
 			}
 		}
 
-		resp.Candidates[idx] = llmadapter.ResponseCandidate{
+		resp.Candidates[idx] = llmberjack.ResponseCandidate{
 			Text:         candidate.Message.Content,
 			ToolCalls:    toolCalls,
 			FinishReason: finishReason,

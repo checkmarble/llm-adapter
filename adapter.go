@@ -1,11 +1,11 @@
-package llmadapter
+package llmberjack
 
 import (
 	"context"
 	"net/http"
 	"reflect"
 
-	"github.com/checkmarble/llm-adapter/internal"
+	"github.com/checkmarble/llmberjack/internal"
 	"github.com/cockroachdb/errors"
 )
 
@@ -37,9 +37,9 @@ type Llm interface {
 	RequestOptionsType() reflect.Type
 }
 
-// LlmAdapter is the main entrypoint for interacting with different LLM providers.
+// llmberjack is the main entrypoint for interacting with different LLM providers.
 // It provides a unified interface to send requests and receive responses.
-type LlmAdapter struct {
+type llmberjack struct {
 	providers       map[string]Llm
 	defaultProvider Llm
 
@@ -47,18 +47,18 @@ type LlmAdapter struct {
 	defaultModel string
 }
 
-// New creates a new LlmAdapter with the given options.
+// New creates a new llmberjack with the given options.
 // It initializes the specified LLM provider and returns a configured adapter.
 //
 // Example usage:
 //
-//	adapter, err := llmadapter.New(
-//		llmadapter.WithDefaultProvider(provider),
-//		llmadapter.WithDefaultModel("gpt-4"),
-//		llmadapter.WithApiKey("...")
+//	adapter, err := llmberjack.New(
+//		llmberjack.WithDefaultProvider(provider),
+//		llmberjack.WithDefaultModel("gpt-4"),
+//		llmberjack.WithApiKey("...")
 //	)
-func New(opts ...llmOption) (*LlmAdapter, error) {
-	llm := LlmAdapter{
+func New(opts ...llmOption) (*llmberjack, error) {
+	llm := llmberjack{
 		providers: make(map[string]Llm),
 	}
 
@@ -80,7 +80,7 @@ func New(opts ...llmOption) (*LlmAdapter, error) {
 // new adapter instance. This also clears the systems instructions.
 // If called without arguments, will clear the history of the default provider,
 // otherwise, it accepts variadic provider names for which to clear the history.
-// func (llm *LlmAdapter) ResetThreads(threadIds ...*ThreadId) {
+// func (llm *llmberjack) ResetThreads(threadIds ...*ThreadId) {
 // 	for _, thread := range threadIds {
 // 		thread.provider.ResetThread(thread)
 // 	}
@@ -90,7 +90,7 @@ func New(opts ...llmOption) (*LlmAdapter, error) {
 // It accepts the provider requested in a specific request, which will override
 // the default provider. If the provider argument is nil, it will return the
 // configured default provider.
-func (llm *LlmAdapter) GetProvider(requestProvider *string) (Llm, error) {
+func (llm *llmberjack) GetProvider(requestProvider *string) (Llm, error) {
 	if llm.defaultProvider == nil {
 		return nil, errors.New("no provider was configured")
 	}
@@ -109,12 +109,12 @@ func (llm *LlmAdapter) GetProvider(requestProvider *string) (Llm, error) {
 	return provider, nil
 }
 
-// LlmAdapter implementation of Adapter
+// llmberjack implementation of Adapter
 
-func (llm LlmAdapter) DefaultModel() string {
+func (llm llmberjack) DefaultModel() string {
 	return llm.defaultModel
 }
 
-func (llm LlmAdapter) HttpClient() *http.Client {
+func (llm llmberjack) HttpClient() *http.Client {
 	return llm.httpClient
 }
