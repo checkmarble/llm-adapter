@@ -6,8 +6,8 @@ import (
 	"io"
 	"reflect"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
-	"github.com/checkmarble/llm-adapter/internal"
+	llmberjack "github.com/checkmarble/llmberjack"
+	"github.com/checkmarble/llmberjack/internal"
 	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
 	"google.golang.org/genai"
@@ -15,7 +15,7 @@ import (
 
 type AiStudio struct {
 	client  *genai.Client
-	history llmadapter.History[*genai.Content]
+	history llmberjack.History[*genai.Content]
 
 	backend  genai.Backend
 	apiKey   string
@@ -67,19 +67,19 @@ func (p *AiStudio) Init(adapter internal.Adapter) error {
 	return nil
 }
 
-func (p *AiStudio) ResetThread(threadId *llmadapter.ThreadId) {
+func (p *AiStudio) ResetThread(threadId *llmberjack.ThreadId) {
 	p.history.Clear(threadId)
 }
 
-func (p *AiStudio) CopyThread(threadId *llmadapter.ThreadId) *llmadapter.ThreadId {
+func (p *AiStudio) CopyThread(threadId *llmberjack.ThreadId) *llmberjack.ThreadId {
 	return p.history.Copy(threadId)
 }
 
-func (p *AiStudio) CloseThread(threadId *llmadapter.ThreadId) {
+func (p *AiStudio) CloseThread(threadId *llmberjack.ThreadId) {
 	p.history.Close(threadId)
 }
 
-func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
+func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, requester llmberjack.Requester) (*llmberjack.InnerResponse, error) {
 	model, ok := lo.Coalesce(requester.ToRequest().Model, p.model, lo.ToPtr(llm.DefaultModel()))
 	if !ok {
 		return nil, errors.New("no model was configured")
@@ -100,7 +100,7 @@ func (p *AiStudio) ChatCompletion(ctx context.Context, llm internal.Adapter, req
 	return p.adaptResponse(llm, response, requester)
 }
 
-func (p *AiStudio) adaptRequest(llm internal.Adapter, requester llmadapter.Requester, opts RequestOptions) ([]*genai.Content, *genai.GenerateContentConfig, error) {
+func (p *AiStudio) adaptRequest(_ internal.Adapter, requester llmberjack.Requester, opts RequestOptions) ([]*genai.Content, *genai.GenerateContentConfig, error) {
 	r := requester.ToRequest()
 	contents := make([]*genai.Content, 0, len(r.Messages))
 
@@ -162,7 +162,7 @@ Messages:
 			}
 
 			switch msg.Type {
-			case llmadapter.TypeText:
+			case llmberjack.TypeText:
 				parts = append(parts, genai.NewPartFromText(string(buf)))
 			}
 		}
@@ -170,11 +170,11 @@ Messages:
 		role := genai.RoleUser
 
 		switch msg.Role {
-		case llmadapter.RoleAi:
+		case llmberjack.RoleAi:
 			role = genai.RoleModel
-		case llmadapter.RoleUser:
+		case llmberjack.RoleUser:
 			role = genai.RoleUser
-		case llmadapter.RoleTool:
+		case llmberjack.RoleTool:
 			if msg.Tool == nil {
 				return nil, nil, errors.New("sent a tool response when no tool was invoked")
 			}
@@ -199,7 +199,7 @@ Messages:
 			}
 
 			continue Messages
-		case llmadapter.RoleSystem:
+		case llmberjack.RoleSystem:
 			if cfg.SystemInstruction == nil {
 				cfg.SystemInstruction = &genai.Content{
 					Parts: make([]*genai.Part, 0),
@@ -230,11 +230,11 @@ Messages:
 	return contents, &cfg, nil
 }
 
-func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateContentResponse, requester llmadapter.Requester) (*llmadapter.InnerResponse, error) {
-	resp := llmadapter.InnerResponse{
+func (p *AiStudio) adaptResponse(_ internal.Adapter, response *genai.GenerateContentResponse, requester llmberjack.Requester) (*llmberjack.InnerResponse, error) {
+	resp := llmberjack.InnerResponse{
 		Id:         response.ResponseID,
 		Model:      response.ModelVersion,
-		Candidates: make([]llmadapter.ResponseCandidate, len(response.Candidates)),
+		Candidates: make([]llmberjack.ResponseCandidate, len(response.Candidates)),
 		Created:    response.CreateTime,
 	}
 
@@ -243,26 +243,26 @@ func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateC
 			return nil, errors.New("LLM provider generated no content")
 		}
 
-		var finishReason llmadapter.FinishReason
+		var finishReason llmberjack.FinishReason
 
 		switch candidate.FinishReason {
 		case genai.FinishReasonStop:
-			finishReason = llmadapter.FinishReasonStop
+			finishReason = llmberjack.FinishReasonStop
 		case genai.FinishReasonMaxTokens:
-			finishReason = llmadapter.FinishReasonMaxTokens
+			finishReason = llmberjack.FinishReasonMaxTokens
 		case genai.FinishReasonProhibitedContent:
-			finishReason = llmadapter.FinishReasonContentFilter
+			finishReason = llmberjack.FinishReasonContentFilter
 		default:
-			finishReason = llmadapter.FinishReason(candidate.FinishReason)
+			finishReason = llmberjack.FinishReason(candidate.FinishReason)
 		}
 
-		var grounding *llmadapter.ResponseGrounding
+		var grounding *llmberjack.ResponseGrounding
 
 		if candidate.GroundingMetadata != nil {
-			grounding = &llmadapter.ResponseGrounding{
+			grounding = &llmberjack.ResponseGrounding{
 				Searches: candidate.GroundingMetadata.WebSearchQueries,
-				Sources: lo.Map(candidate.GroundingMetadata.GroundingChunks, func(c *genai.GroundingChunk, _ int) llmadapter.ResponseGroundingSource {
-					return llmadapter.ResponseGroundingSource{
+				Sources: lo.Map(candidate.GroundingMetadata.GroundingChunks, func(c *genai.GroundingChunk, _ int) llmberjack.ResponseGroundingSource {
+					return llmberjack.ResponseGroundingSource{
 						Domain: lo.CoalesceOrEmpty(c.Web.Domain, c.Web.Title),
 						Url:    c.Web.URI,
 					}
@@ -273,7 +273,7 @@ func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateC
 			}
 		}
 
-		toolCalls := make([]llmadapter.ResponseToolCall, len(response.FunctionCalls()))
+		toolCalls := make([]llmberjack.ResponseToolCall, len(response.FunctionCalls()))
 
 		for idx, toolCall := range response.FunctionCalls() {
 			params, err := json.Marshal(toolCall.Args)
@@ -281,14 +281,14 @@ func (p *AiStudio) adaptResponse(llm internal.Adapter, response *genai.GenerateC
 				return nil, errors.Wrap(err, "failed to parse tool call parameters")
 			}
 
-			toolCalls[idx] = llmadapter.ResponseToolCall{
+			toolCalls[idx] = llmberjack.ResponseToolCall{
 				Id:         toolCall.ID,
 				Name:       toolCall.Name,
 				Parameters: params,
 			}
 		}
 
-		resp.Candidates[idx] = llmadapter.ResponseCandidate{
+		resp.Candidates[idx] = llmberjack.ResponseCandidate{
 			Text:         candidate.Content.Parts[0].Text,
 			ToolCalls:    toolCalls,
 			FinishReason: finishReason,

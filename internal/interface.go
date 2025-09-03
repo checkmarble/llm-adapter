@@ -3,7 +3,7 @@ package internal
 import "net/http"
 
 // Adapter defines the interface for internal configuration and utility methods
-// that LLM providers can access from the main LlmAdapter.
+// that LLM providers can access from the main llmberjack.
 type Adapter interface {
 	// DefaultModel returns the default model name configured for the adapter.
 	DefaultModel() string

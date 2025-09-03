@@ -1,11 +1,11 @@
-package llmadapter
+package llmberjack
 
 import (
 	"context"
 	"io"
 	"reflect"
 
-	"github.com/checkmarble/llm-adapter/internal"
+	"github.com/checkmarble/llmberjack/internal"
 	"github.com/stretchr/testify/mock"
 )
 

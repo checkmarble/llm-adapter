@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
-	"github.com/checkmarble/llm-adapter/llms/openai"
+	llmberjack "github.com/checkmarble/llmberjack"
+	"github.com/checkmarble/llmberjack/llms/openai"
 )
 
 func main() {
@@ -13,12 +13,12 @@ func main() {
 
 	ollama, _ := openai.New(openai.WithBaseUrl("http://localhost:11434/v1"))
 
-	llm, _ := llmadapter.New(
-		llmadapter.WithProvider("ollama", ollama),
-		llmadapter.WithDefaultModel("gemma3n:e4b"),
+	llm, _ := llmberjack.New(
+		llmberjack.WithProvider("ollama", ollama),
+		llmberjack.WithDefaultModel("gemma3n:e4b"),
 	)
 
-	resp, _ := llmadapter.NewUntypedRequest().WithProvider("ollama").WithText(llmadapter.RoleUser, "How are you?").Do(ctx, llm)
+	resp, _ := llmberjack.NewUntypedRequest().WithProvider("ollama").WithText(llmberjack.RoleUser, "How are you?").Do(ctx, llm)
 
 	fmt.Println(resp)
 }

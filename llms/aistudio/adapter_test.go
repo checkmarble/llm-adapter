@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
+	llmberjack "github.com/checkmarble/llmberjack"
 	"github.com/h2non/gock"
 	"github.com/invopop/jsonschema"
 	"github.com/samber/lo"
@@ -31,11 +31,11 @@ const aistudioResponse = `{
 }`
 
 func TestRequestAdapter(t *testing.T) {
-	llm, _ := llmadapter.New()
+	llm, _ := llmberjack.New()
 	p, _ := New()
 
 	t.Run("with model", func(t *testing.T) {
-		req := llmadapter.NewUntypedRequest().
+		req := llmberjack.NewUntypedRequest().
 			WithModel("themodel")
 
 		contents, cfg, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
@@ -46,7 +46,7 @@ func TestRequestAdapter(t *testing.T) {
 	})
 
 	t.Run("with system prompts", func(t *testing.T) {
-		req := llmadapter.NewUntypedRequest().
+		req := llmberjack.NewUntypedRequest().
 			WithModel("themodel").
 			WithInstruction("system prompt", "system prompt 2").
 			WithInstructionReader(strings.NewReader("system prompt 3"))
@@ -63,9 +63,9 @@ func TestRequestAdapter(t *testing.T) {
 	})
 
 	t.Run("with user prompts", func(t *testing.T) {
-		req := llmadapter.NewUntypedRequest().
-			WithText(llmadapter.RoleUser, "user prompt", "user prompt 2").
-			WithTextReader(llmadapter.RoleUser, strings.NewReader("user prompt 3"))
+		req := llmberjack.NewUntypedRequest().
+			WithText(llmberjack.RoleUser, "user prompt", "user prompt 2").
+			WithTextReader(llmberjack.RoleUser, strings.NewReader("user prompt 3"))
 
 		contents, _, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
 
@@ -86,12 +86,12 @@ func TestRequestAdapter(t *testing.T) {
 			Text string `json:"text" jsonschema_description:"Text description"`
 		}
 
-		req := llmadapter.NewUntypedRequest().
+		req := llmberjack.NewUntypedRequest().
 			WithTools(
-				llmadapter.NewTool[Args1]("toolname", "tooldesc", llmadapter.Function(func(a Args1) (string, error) {
+				llmberjack.NewTool[Args1]("toolname", "tooldesc", llmberjack.Function(func(a Args1) (string, error) {
 					return "", nil
 				})),
-				llmadapter.NewTool[Args2]("toolname 2", "tooldesc 2", llmadapter.Function(func(a Args2) (string, error) {
+				llmberjack.NewTool[Args2]("toolname 2", "tooldesc 2", llmberjack.Function(func(a Args2) (string, error) {
 					return "", nil
 				})),
 			)
@@ -138,7 +138,7 @@ func TestRequestAdapter(t *testing.T) {
 			Number int    `json:"number" jsonschema_description:"Number description"`
 		}
 
-		req := llmadapter.NewRequest[Format]()
+		req := llmberjack.NewRequest[Format]()
 
 		_, cfg, err := p.adaptRequest(llm, req, lo.FromPtr[RequestOptions](nil))
 
@@ -158,7 +158,7 @@ func TestRequestAdapter(t *testing.T) {
 	})
 
 	t.Run("with request options", func(t *testing.T) {
-		req := llmadapter.NewUntypedRequest().
+		req := llmberjack.NewUntypedRequest().
 			WithMaxCandidates(10).
 			WithMaxTokens(42).
 			WithTemperature(0.1).
@@ -174,7 +174,7 @@ func TestRequestAdapter(t *testing.T) {
 	})
 
 	t.Run("with provider options", func(t *testing.T) {
-		req := llmadapter.NewUntypedRequest()
+		req := llmberjack.NewUntypedRequest()
 		opts := RequestOptions{
 			GoogleSearch: lo.ToPtr(true),
 			TopK:         lo.ToPtr(0.2),
@@ -203,7 +203,7 @@ func TestSkipHistory(t *testing.T) {
 
 	httpClient := &http.Client{}
 	provider, _ := New(WithBackend(genai.BackendVertexAI), WithLocation("location"), WithProject("project"))
-	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider), llmadapter.WithDefaultModel("themodel"), llmadapter.WithHttpClient(httpClient))
+	llm, _ := llmberjack.New(llmberjack.WithDefaultProvider(provider), llmberjack.WithDefaultModel("themodel"), llmberjack.WithHttpClient(httpClient))
 
 	gock.InterceptClient(httpClient)
 
@@ -214,16 +214,16 @@ func TestSkipHistory(t *testing.T) {
 		SetHeader("content-type", "application/json").
 		BodyString(aistudioResponse)
 
-	resp, _ := llmadapter.NewUntypedRequest().CreateThread().WithInstruction("system text").Do(t.Context(), llm)
+	resp, _ := llmberjack.NewUntypedRequest().CreateThread().WithInstruction("system text").Do(t.Context(), llm)
 	threadId := resp.ThreadId
 
 	assert.Len(t, provider.history.Load(threadId), 1)
 
-	_, _ = llmadapter.NewUntypedRequest().InThread(threadId).WithInstruction("system text").Do(t.Context(), llm)
+	_, _ = llmberjack.NewUntypedRequest().InThread(threadId).WithInstruction("system text").Do(t.Context(), llm)
 
 	assert.Len(t, provider.history.Load(threadId), 2)
 
-	resp, _ = llmadapter.NewUntypedRequest().InThread(threadId).WithInstruction("system text").SkipSaveInput().Do(t.Context(), llm)
+	resp, _ = llmberjack.NewUntypedRequest().InThread(threadId).WithInstruction("system text").SkipSaveInput().Do(t.Context(), llm)
 
 	assert.Len(t, provider.history.Load(resp.ThreadId), 2)
 

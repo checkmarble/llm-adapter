@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	llmadapter "github.com/checkmarble/llm-adapter"
-	"github.com/checkmarble/llm-adapter/llms/openai"
+	llmberjack "github.com/checkmarble/llmberjack"
+	"github.com/checkmarble/llmberjack/llms/openai"
 	"github.com/h2non/gock"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
@@ -17,9 +17,9 @@ func TestPerplexityExtras(t *testing.T) {
 	defer gock.Off()
 
 	provider, _ := New(openai.WithApiKey("apikey"))
-	llm, _ := llmadapter.New(llmadapter.WithDefaultProvider(provider))
+	llm, _ := llmberjack.New(llmberjack.WithDefaultProvider(provider))
 
-	req := llmadapter.NewUntypedRequest().
+	req := llmberjack.NewUntypedRequest().
 		WithProviderOptions(RequestOptions{
 			SearchMode: SearchModeAcademic,
 			BeforeDate: NewDate(time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)),
@@ -28,7 +28,7 @@ func TestPerplexityExtras(t *testing.T) {
 			},
 			SearchDomainFilter: []string{"google.com", "wikipedia.org"},
 		}).
-		WithText(llmadapter.RoleUser, "C'est une bonne situation ça Scribe ?")
+		WithText(llmberjack.RoleUser, "C'est une bonne situation ça Scribe ?")
 
 	gock.New("https://api.perplexity.ai").
 		Post("/chat/completions").

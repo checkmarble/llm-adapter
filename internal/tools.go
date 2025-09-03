@@ -38,7 +38,7 @@ func NewTool[A any](name, description string, fn FunctionBody) Tool {
 // FunctionBody is a wrapper around the tool function pointer.
 //
 // It is private so the only way to create it is through the
-// llmadapter.Function[A]() function, which ensures the argument is of the shape
+// llmberjack.Function[A]() function, which ensures the argument is of the shape
 // `func(a) (string, error)`.
 type FunctionBody struct {
 	Inner any
