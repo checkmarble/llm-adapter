@@ -148,7 +148,7 @@ func NewRequest[T any]() Request[T] {
 //
 // It will return a response generic over the configured typed on the Request,
 // or an error.
-func (r Request[T]) Do(ctx context.Context, llm *Llmberjack) (*Response[T], error) {
+func (r Request[T]) Do(ctx context.Context, llm *LlmAdapter) (*Response[T], error) {
 	if r.err != nil {
 		return nil, r.err
 	}

@@ -2,11 +2,11 @@ package llmberjack
 
 import "net/http"
 
-type llmOption func(*Llmberjack)
+type llmOption func(*LlmAdapter)
 
 // WithDefaultProvider sets what LLM provider to use for communication.
 func WithDefaultProvider(provider Llm) llmOption {
-	return func(llm *Llmberjack) {
+	return func(llm *LlmAdapter) {
 		llm.providers[defaultProvider] = provider
 		llm.defaultProvider = llm.providers[defaultProvider]
 	}
@@ -17,7 +17,7 @@ func WithDefaultProvider(provider Llm) llmOption {
 // The first one to be registered will become the default, unless a default was
 // already or is defined later with `SetDefaultProvider`.
 func WithProvider(name string, provider Llm) llmOption {
-	return func(llm *Llmberjack) {
+	return func(llm *LlmAdapter) {
 		llm.providers[name] = provider
 
 		if llm.defaultProvider == nil {
@@ -31,7 +31,7 @@ func WithProvider(name string, provider Llm) llmOption {
 // request. It is the caller's responsibility to ensure the requested model is
 // available on the configured provider.
 func WithDefaultModel(model string) llmOption {
-	return func(llm *Llmberjack) {
+	return func(llm *LlmAdapter) {
 		llm.defaultModel = model
 	}
 }
@@ -41,7 +41,7 @@ func WithDefaultModel(model string) llmOption {
 // If a provider does not support overriding the HTTP client, this will be
 // ignored.
 func WithHttpClient(client *http.Client) llmOption {
-	return func(llm *Llmberjack) {
+	return func(llm *LlmAdapter) {
 		llm.httpClient = client
 	}
 }

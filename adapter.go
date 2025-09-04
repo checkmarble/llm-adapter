@@ -37,9 +37,9 @@ type Llm interface {
 	RequestOptionsType() reflect.Type
 }
 
-// Llmberjack is the main entrypoint for interacting with different LLM providers.
+// LlmAdapter is the main entrypoint for interacting with different LLM providers.
 // It provides a unified interface to send requests and receive responses.
-type Llmberjack struct {
+type LlmAdapter struct {
 	providers       map[string]Llm
 	defaultProvider Llm
 
@@ -47,7 +47,7 @@ type Llmberjack struct {
 	defaultModel string
 }
 
-// New creates a new Llmberjack with the given options.
+// New creates a new LlmAdapter with the given options.
 // It initializes the specified LLM provider and returns a configured adapter.
 //
 // Example usage:
@@ -57,8 +57,8 @@ type Llmberjack struct {
 //		llmberjack.WithDefaultModel("gpt-4"),
 //		llmberjack.WithApiKey("...")
 //	)
-func New(opts ...llmOption) (*Llmberjack, error) {
-	llm := Llmberjack{
+func New(opts ...llmOption) (*LlmAdapter, error) {
+	llm := LlmAdapter{
 		providers: make(map[string]Llm),
 	}
 
@@ -80,7 +80,7 @@ func New(opts ...llmOption) (*Llmberjack, error) {
 // new adapter instance. This also clears the systems instructions.
 // If called without arguments, will clear the history of the default provider,
 // otherwise, it accepts variadic provider names for which to clear the history.
-// func (llm *Llmberjack) ResetThreads(threadIds ...*ThreadId) {
+// func (llm *LlmAdapter) ResetThreads(threadIds ...*ThreadId) {
 // 	for _, thread := range threadIds {
 // 		thread.provider.ResetThread(thread)
 // 	}
@@ -90,7 +90,7 @@ func New(opts ...llmOption) (*Llmberjack, error) {
 // It accepts the provider requested in a specific request, which will override
 // the default provider. If the provider argument is nil, it will return the
 // configured default provider.
-func (llm *Llmberjack) GetProvider(requestProvider *string) (Llm, error) {
+func (llm *LlmAdapter) GetProvider(requestProvider *string) (Llm, error) {
 	if llm.defaultProvider == nil {
 		return nil, errors.New("no provider was configured")
 	}
@@ -109,12 +109,12 @@ func (llm *Llmberjack) GetProvider(requestProvider *string) (Llm, error) {
 	return provider, nil
 }
 
-// Llmberjack implementation of Adapter
+// LlmAdapter implementation of Adapter
 
-func (llm Llmberjack) DefaultModel() string {
+func (llm LlmAdapter) DefaultModel() string {
 	return llm.defaultModel
 }
 
-func (llm Llmberjack) HttpClient() *http.Client {
+func (llm LlmAdapter) HttpClient() *http.Client {
 	return llm.httpClient
 }

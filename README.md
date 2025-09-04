@@ -100,8 +100,8 @@ output, err := resp.Get(0)
 
 A few utilities are available to run multiple requests at the same time:
 
- - `llmberjack.All[T](context.Context, *llmberjack.Llmberjack, reqs ...Request[T])` can be used to fire several requests at once, wait for all of them to return and get a slice of results.
- - `llmberjack.Race[T](context.Context, *llmberjack.Llmberjack, reqs ...Request[T])` can be used to fire several requests at once, return the first successful response, and cancel the others.
+ - `llmberjack.All[T](context.Context, *llmberjack.LlmAdapter, reqs ...Request[T])` can be used to fire several requests at once, wait for all of them to return and get a slice of results.
+ - `llmberjack.Race[T](context.Context, *llmberjack.LlmAdapter, reqs ...Request[T])` can be used to fire several requests at once, return the first successful response, and cancel the others.
 
 Note that cancelled requests will still incur cost on most providers.
 
