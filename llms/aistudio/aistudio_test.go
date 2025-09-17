@@ -158,7 +158,7 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 			name: "With requestOption - only Budget",
 			requestOptions: &aistudio.RequestOptions{
 				Thinking: &aistudio.ThinkingConfig{
-					Budget: lo.ToPtr(int32(50)),
+					Budget: lo.ToPtr(int(50)),
 				},
 			},
 			expectedMatcher: func(body []byte) bool {
@@ -172,7 +172,7 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 			requestOptions: &aistudio.RequestOptions{
 				Thinking: &aistudio.ThinkingConfig{
 					IncludeThoughts: true,
-					Budget:          lo.ToPtr(int32(100)),
+					Budget:          lo.ToPtr(int(100)),
 				},
 			},
 			expectedMatcher: func(body []byte) bool {
@@ -185,7 +185,7 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 			name: "With requestOption - Disable thinking",
 			requestOptions: &aistudio.RequestOptions{
 				Thinking: &aistudio.ThinkingConfig{
-					Budget: lo.ToPtr(int32(0)),
+					Budget: lo.ToPtr(int(0)),
 				},
 			},
 			expectedMatcher: func(body []byte) bool {

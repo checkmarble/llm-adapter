@@ -23,3 +23,11 @@ func MaybeF64ToF32(f *float64) *float32 {
 
 	return lo.ToPtr(float32(*f))
 }
+
+func MaybeIntToInt32(i *int) *int32 {
+	if i == nil {
+		return nil
+	}
+
+	return lo.ToPtr(int32(*i))
+}
