@@ -10,6 +10,7 @@ import (
 	llmberjack "github.com/checkmarble/llmberjack"
 	"github.com/checkmarble/llmberjack/llms/aistudio"
 	"github.com/h2non/gock"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	"google.golang.org/genai"
@@ -115,4 +116,112 @@ func TestGoogleAiRequest(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, "The JSON response from the provider.", output.Reply)
+}
+
+func TestGoogleAiRequestWithThinking(t *testing.T) {
+	defer gock.Off()
+
+	httpClient := &http.Client{}
+	provider, _ := aistudio.New(aistudio.WithBackend(genai.BackendVertexAI), aistudio.WithLocation("location"), aistudio.WithProject("project"))
+	llm, _ := llmberjack.New(llmberjack.WithDefaultProvider(provider), llmberjack.WithHttpClient(httpClient))
+	gock.InterceptClient(httpClient)
+
+	tests := []struct {
+		name            string
+		requestOptions  *aistudio.RequestOptions
+		expectedMatcher func(body []byte) bool
+	}{
+		{
+			name:           "Without requestOption",
+			requestOptions: nil,
+			expectedMatcher: func(body []byte) bool {
+				// When no thinking config is provided, these fields should not be present
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Exists())
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Exists())
+				return true
+			},
+		},
+		{
+			name: "With requestOption - only IncludeThoughts",
+			requestOptions: &aistudio.RequestOptions{
+				Thinking: &aistudio.ThinkingConfig{
+					IncludeThoughts: true,
+				},
+			},
+			expectedMatcher: func(body []byte) bool {
+				assert.EqualValues(t, true, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Bool())
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Exists())
+				return true
+			},
+		},
+		{
+			name: "With requestOption - only Budget",
+			requestOptions: &aistudio.RequestOptions{
+				Thinking: &aistudio.ThinkingConfig{
+					Budget: lo.ToPtr(int32(50)),
+				},
+			},
+			expectedMatcher: func(body []byte) bool {
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Exists())
+				assert.EqualValues(t, 50, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Int())
+				return true
+			},
+		},
+		{
+			name: "With requestOption - both fields set",
+			requestOptions: &aistudio.RequestOptions{
+				Thinking: &aistudio.ThinkingConfig{
+					IncludeThoughts: true,
+					Budget:          lo.ToPtr(int32(100)),
+				},
+			},
+			expectedMatcher: func(body []byte) bool {
+				assert.EqualValues(t, true, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Bool())
+				assert.EqualValues(t, 100, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Int())
+				return true
+			},
+		},
+		{
+			name: "With requestOption - Disable thinking",
+			requestOptions: &aistudio.RequestOptions{
+				Thinking: &aistudio.ThinkingConfig{
+					Budget: lo.ToPtr(int32(0)),
+				},
+			},
+			expectedMatcher: func(body []byte) bool {
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Exists())
+				assert.True(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Exists())
+				assert.EqualValues(t, 0, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Int())
+				return true
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := llmberjack.NewUntypedRequest().
+				WithModel("themodel").
+				WithText(llmberjack.RoleUser, "user text")
+
+			// Only add provider options if they exist
+			if tt.requestOptions != nil {
+				req = req.WithProviderOptions(*tt.requestOptions)
+			}
+
+			gock.New("https://location-aiplatform.googleapis.com").
+				Post("/v1beta1/projects/project/locations/location/publishers/google/models/themodel:generateContent").
+				AddMatcher(func(req *http.Request, _ *gock.Request) (bool, error) {
+					body, _ := io.ReadAll(req.Body)
+					return tt.expectedMatcher(body), nil
+				}).
+				Reply(http.StatusOK)
+
+			_, err := req.Do(t.Context(), llm)
+			assert.Nil(t, err)
+			assert.False(t, gock.HasUnmatchedRequest())
+
+			// Clean up gock for next subtest
+			gock.Flush()
+		})
+	}
 }

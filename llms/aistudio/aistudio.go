@@ -122,6 +122,13 @@ func (p *AiStudio) adaptRequest(_ internal.Adapter, requester llmberjack.Request
 		}}
 	}
 
+	if opts.Thinking != nil {
+		cfg.ThinkingConfig = &genai.ThinkingConfig{
+			IncludeThoughts: opts.Thinking.IncludeThoughts,
+			ThinkingBudget:  opts.Thinking.Budget,
+		}
+	}
+
 	if r.ResponseSchema != nil {
 		r.ResponseSchema.Description = r.SchemaDescription
 
