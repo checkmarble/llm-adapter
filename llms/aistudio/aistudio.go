@@ -125,7 +125,7 @@ func (p *AiStudio) adaptRequest(_ internal.Adapter, requester llmberjack.Request
 	if opts.Thinking != nil {
 		cfg.ThinkingConfig = &genai.ThinkingConfig{
 			IncludeThoughts: opts.Thinking.IncludeThoughts,
-			ThinkingBudget:  opts.Thinking.Budget,
+			ThinkingBudget:  internal.MaybeIntToInt32(opts.Thinking.Budget),
 		}
 	}
 
