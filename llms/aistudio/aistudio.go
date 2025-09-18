@@ -124,7 +124,7 @@ func (p *AiStudio) adaptRequest(_ internal.Adapter, requester llmberjack.Request
 
 	if r.Thinking != nil && !lo.FromPtr(r.Thinking) {
 		cfg.ThinkingConfig = &genai.ThinkingConfig{
-			ThinkingBudget: internal.MaybeIntToInt32(lo.ToPtr(int(0))),
+			ThinkingBudget: lo.ToPtr(int32(0)),
 		}
 	} else {
 		if opts.Thinking != nil {
