@@ -122,10 +122,16 @@ func (p *AiStudio) adaptRequest(_ internal.Adapter, requester llmberjack.Request
 		}}
 	}
 
-	if opts.Thinking != nil {
+	if r.Thinking != nil && !lo.FromPtr(r.Thinking) {
 		cfg.ThinkingConfig = &genai.ThinkingConfig{
-			IncludeThoughts: opts.Thinking.IncludeThoughts,
-			ThinkingBudget:  internal.MaybeIntToInt32(opts.Thinking.Budget),
+			ThinkingBudget: internal.MaybeIntToInt32(lo.ToPtr(int(0))),
+		}
+	} else {
+		if opts.Thinking != nil {
+			cfg.ThinkingConfig = &genai.ThinkingConfig{
+				IncludeThoughts: opts.Thinking.IncludeThoughts,
+				ThinkingBudget:  internal.MaybeIntToInt32(opts.Thinking.Budget),
+			}
 		}
 	}
 

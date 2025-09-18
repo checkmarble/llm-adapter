@@ -128,11 +128,13 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 
 	tests := []struct {
 		name            string
+		thinking        *bool
 		requestOptions  *aistudio.RequestOptions
 		expectedMatcher func(body []byte) bool
 	}{
 		{
 			name:           "Without requestOption",
+			thinking:       nil,
 			requestOptions: nil,
 			expectedMatcher: func(body []byte) bool {
 				// When no thinking config is provided, these fields should not be present
@@ -142,7 +144,8 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 			},
 		},
 		{
-			name: "With requestOption - only IncludeThoughts",
+			name:     "With requestOption - only IncludeThoughts",
+			thinking: nil,
 			requestOptions: &aistudio.RequestOptions{
 				Thinking: &aistudio.ThinkingConfig{
 					IncludeThoughts: true,
@@ -155,7 +158,8 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 			},
 		},
 		{
-			name: "With requestOption - only Budget",
+			name:     "With requestOption - only Budget",
+			thinking: nil,
 			requestOptions: &aistudio.RequestOptions{
 				Thinking: &aistudio.ThinkingConfig{
 					Budget: lo.ToPtr(int(50)),
@@ -168,7 +172,8 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 			},
 		},
 		{
-			name: "With requestOption - both fields set",
+			name:     "With requestOption - both fields set",
+			thinking: nil,
 			requestOptions: &aistudio.RequestOptions{
 				Thinking: &aistudio.ThinkingConfig{
 					IncludeThoughts: true,
@@ -195,6 +200,57 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 				return true
 			},
 		},
+		{
+			name:           "With Request - Disable thinking",
+			thinking:       lo.ToPtr(false),
+			requestOptions: nil,
+			expectedMatcher: func(body []byte) bool {
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Exists())
+				assert.True(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Exists())
+				assert.EqualValues(t, 0, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Int())
+				return true
+			},
+		},
+		{
+			name:     "With Request - Disable thinking with request option",
+			thinking: lo.ToPtr(false),
+			requestOptions: &aistudio.RequestOptions{
+				Thinking: &aistudio.ThinkingConfig{
+					Budget: lo.ToPtr(int(100)),
+				},
+			},
+			expectedMatcher: func(body []byte) bool {
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Exists())
+				assert.True(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Exists())
+				assert.EqualValues(t, 0, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Int())
+				return true
+			},
+		},
+		{
+			name:           "With Request - Enable thinking",
+			thinking:       lo.ToPtr(true),
+			requestOptions: nil,
+			expectedMatcher: func(body []byte) bool {
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Exists())
+				assert.False(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Exists())
+				return true
+			},
+		},
+		{
+			name:     "With Request - Enable thinking with request option",
+			thinking: lo.ToPtr(true),
+			requestOptions: &aistudio.RequestOptions{
+				Thinking: &aistudio.ThinkingConfig{
+					IncludeThoughts: true,
+					Budget:          lo.ToPtr(int(100)),
+				},
+			},
+			expectedMatcher: func(body []byte) bool {
+				assert.True(t, gjson.GetBytes(body, "generationConfig.thinkingConfig.includeThoughts").Bool())
+				assert.EqualValues(t, 100, gjson.GetBytes(body, "generationConfig.thinkingConfig.thinkingBudget").Int())
+				return true
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -202,6 +258,10 @@ func TestGoogleAiRequestWithThinking(t *testing.T) {
 			req := llmberjack.NewUntypedRequest().
 				WithModel("themodel").
 				WithText(llmberjack.RoleUser, "user text")
+
+			if tt.thinking != nil {
+				req = req.WithThinking(*tt.thinking)
+			}
 
 			// Only add provider options if they exist
 			if tt.requestOptions != nil {
