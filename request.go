@@ -81,6 +81,9 @@ type innerRequest struct {
 	Temperature   *float64
 	TopP          *float64
 
+	// Thinking is a flag to enable/disable thinking. If not provided, the provider will use its default behavior.
+	Thinking *bool
+
 	ProviderOptions map[reflect.Type]internal.ProviderRequestOptions
 }
 
@@ -497,6 +500,12 @@ func (r Request[T]) WithTemperature(temp float64) Request[T] {
 // WithTopP sets the `top_p` parameter.
 func (r Request[T]) WithTopP(topp float64) Request[T] {
 	r.TopP = &topp
+
+	return r
+}
+
+func (r Request[T]) WithThinking(thinking bool) Request[T] {
+	r.Thinking = &thinking
 
 	return r
 }
